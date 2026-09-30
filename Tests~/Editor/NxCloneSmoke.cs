@@ -20,34 +20,76 @@ public static class NxCloneSmoke
         var descriptor = avatar.AddComponent<VRCAvatarDescriptor>();
         var group = new GameObject("nxclone");
         group.transform.SetParent(avatar.transform);
+        var driver = new GameObject("placement-1");
+        driver.transform.SetParent(group.transform);
+        driver.AddComponent<VRCParentConstraint>();
+        driver.AddComponent<VRCScaleConstraint>();
         var clone = new GameObject("clone-1");
-        clone.transform.SetParent(group.transform);
+        clone.transform.SetParent(driver.transform);
         var cloneRenderer = clone.AddComponent<SkinnedMeshRenderer>();
         cloneRenderer.enabled = false;
+        var driver2 = new GameObject("placement-2");
+        driver2.transform.SetParent(group.transform);
+        driver2.AddComponent<VRCParentConstraint>();
+        driver2.AddComponent<VRCScaleConstraint>();
+        var clone2 = new GameObject("clone-2");
+        clone2.transform.SetParent(driver2.transform);
+        var smokeBone2 = new GameObject("bone");
+        smokeBone2.transform.SetParent(clone2.transform);
+        smokeBone2.AddComponent<VRCRotationConstraint>();
+        clone2.SetActive(false);
         var ghost = new GameObject("afterimage-1");
         ghost.transform.SetParent(group.transform);
         ghost.AddComponent<SkinnedMeshRenderer>();
-        clone.AddComponent<VRCParentConstraint>();
         var smokeBone = new GameObject("bone");
         smokeBone.transform.SetParent(clone.transform);
         smokeBone.AddComponent<VRCRotationConstraint>();
         clone.SetActive(false);
         ghost.SetActive(false);
         AssetDatabase.CreateFolder("Assets", "nxclone-smoke");
+        var originalMenu = ScriptableObject.CreateInstance<VRCExpressionsMenu>();
+        originalMenu.controls = Enumerable.Range(0, 8).Select(i => new VRCExpressionsMenu.Control {
+            name = $"Original {i + 1}", type = VRCExpressionsMenu.Control.ControlType.Toggle,
+            parameter = new VRCExpressionsMenu.Control.Parameter { name = "root_control" }, value = 1
+        }).ToList();
+        AssetDatabase.CreateAsset(originalMenu, "Assets/nxclone-smoke/root-menu.asset");
+        var originalParameters = ScriptableObject.CreateInstance<VRCExpressionParameters>();
+        originalParameters.parameters = new[] { new VRCExpressionParameters.Parameter {
+            name = "root_control", valueType = VRCExpressionParameters.ValueType.Bool, defaultValue = 0, saved = false, networkSynced = true
+        } };
+        AssetDatabase.CreateAsset(originalParameters, "Assets/nxclone-smoke/root-parameters.asset");
+        descriptor.customExpressions = true;
+        descriptor.expressionsMenu = originalMenu;
+        descriptor.expressionParameters = originalParameters;
         var window = ScriptableObject.CreateInstance<NxCloneWindow>();
         typeof(NxCloneWindow).GetField("avatar", BindingFlags.NonPublic | BindingFlags.Instance).SetValue(window, descriptor);
         typeof(NxCloneWindow).GetField("worldDrop", BindingFlags.NonPublic | BindingFlags.Instance).SetValue(window, true);
         typeof(NxCloneWindow).GetField("afterimages", BindingFlags.NonPublic | BindingFlags.Instance).SetValue(window, true);
         typeof(NxCloneWindow).GetField("copyVisemes", BindingFlags.NonPublic | BindingFlags.Instance).SetValue(window, false);
+        typeof(NxCloneWindow).GetField("copyFxAnimations", BindingFlags.NonPublic | BindingFlags.Instance).SetValue(window, false);
+        typeof(NxCloneWindow).GetField("slots", BindingFlags.NonPublic | BindingFlags.Instance).SetValue(window,
+            new System.Collections.Generic.List<NxCloneSlot> { new NxCloneSlot(), new NxCloneSlot() });
         typeof(NxCloneWindow).GetField("runtimeScale", BindingFlags.NonPublic | BindingFlags.Instance).SetValue(window, true);
         typeof(NxCloneWindow).GetField("poseFreeze", BindingFlags.NonPublic | BindingFlags.Instance).SetValue(window, true);
         var method = typeof(NxCloneWindow).GetMethod("InstallToggle", BindingFlags.NonPublic | BindingFlags.Instance);
-        method.Invoke(window, new object[] { descriptor, "Assets/nxclone-smoke", group.transform, new System.Collections.Generic.List<Transform> { clone.transform }, new System.Collections.Generic.List<Transform> { ghost.transform } });
+        var clones = new System.Collections.Generic.List<Transform> { clone.transform, clone2.transform };
+        method.Invoke(window, new object[] { descriptor, "Assets/nxclone-smoke", group.transform, clones, new System.Collections.Generic.List<Transform> { ghost.transform } });
         AssetDatabase.SaveAssets();
         var fx = descriptor.baseAnimationLayers.First(x => x.type == VRCAvatarDescriptor.AnimLayerType.FX).animatorController as AnimatorController;
         if (!descriptor.customizeAnimationLayers) throw new Exception("Custom animation layers disabled");
-        if (clone.activeSelf || ghost.activeSelf) throw new Exception("Visuals spawn visible");
-        foreach (var control in descriptor.expressionsMenu.controls[0].subMenu.controls)
+        if (clone.activeSelf || clone2.activeSelf || ghost.activeSelf) throw new Exception("Visuals spawn visible");
+        if (descriptor.expressionsMenu.controls.Count != 2) throw new Exception("Existing menu was not wrapped with nxclone submenu");
+        var originalMenuControl = descriptor.expressionsMenu.controls.FirstOrDefault(x => x.name == "Avatar");
+        var nxcloneMenuControl = descriptor.expressionsMenu.controls.FirstOrDefault(x => x.name == "nxclone");
+        if (originalMenuControl == null || !originalMenuControl.subMenu || originalMenuControl.subMenu.controls.Count != 8)
+            throw new Exception("Wrapped original eight-control menu was not preserved");
+        if (nxcloneMenuControl == null || !nxcloneMenuControl.subMenu ||
+            !nxcloneMenuControl.subMenu.controls.Any(x => x.name == "Clone 1") ||
+            !nxcloneMenuControl.subMenu.controls.Any(x => x.name == "Clone 2"))
+            throw new Exception("nxclone submenu omitted per-clone controls");
+        if (!descriptor.expressionParameters.parameters.Any(x => x.name == "root_control"))
+            throw new Exception("Existing expression parameter was not preserved");
+        foreach (var control in originalMenuControl.subMenu.controls)
             if (control.type == VRCExpressionsMenu.Control.ControlType.Toggle && control.value != 1)
                 throw new Exception("Toggle on-value is not one: " + control.name);
         if (descriptor.expressionParameters.parameters.Where(x => x.name == "nxclone_visible" || x.name == "nxclone_afterimages").Any(x => x.saved || x.defaultValue != 0))
@@ -60,7 +102,16 @@ public static class NxCloneSmoke
         animator.SetBool("nxclone_visible", true);
         animator.Update(0.1f);
         animator.Update(0.1f);
-        if (!clone.activeSelf || ghost.activeSelf || cloneRenderer.enabled) throw new Exception("Clone toggle failed or enabled hidden outfit");
+        if (!clone.activeSelf || !clone2.activeSelf || ghost.activeSelf || cloneRenderer.enabled) throw new Exception("Master clone toggle failed or enabled hidden outfit");
+        animator.SetBool("nxclone_enabled_1", false);
+        animator.Update(0.1f);
+        animator.Update(0.1f);
+        if (animator.GetBool("nxclone_visible") != true || clone.activeSelf || !clone2.activeSelf)
+            throw new Exception("Per-clone off failed while master remained on");
+        animator.SetBool("nxclone_enabled_1", true);
+        animator.Update(0.1f);
+        animator.Update(0.1f);
+        if (!clone.activeSelf || !clone2.activeSelf) throw new Exception("Per-clone re-enable failed");
         animator.SetBool("nxclone_afterimages", true);
         animator.Update(0.1f);
         animator.Update(0.1f);
@@ -68,15 +119,19 @@ public static class NxCloneSmoke
         animator.SetBool("nxclone_visible", false);
         animator.Update(0.1f);
         animator.Update(0.1f);
-        if (clone.activeSelf || !ghost.activeSelf) throw new Exception("Clone/afterimage controls not independent");
+        if (clone.activeSelf || clone2.activeSelf || !ghost.activeSelf) throw new Exception("Clone/afterimage controls not independent");
         animator.SetBool("nxclone_afterimages", false);
         animator.Update(0.1f);
         animator.Update(0.1f);
         if (ghost.activeSelf) throw new Exception("Afterimages toggle off failed");
         if (!fx || fx.layers.Length < 2 || fx.parameters.Length < 2) throw new Exception("FX controller or controls missing");
         if (!descriptor.customExpressions || !descriptor.expressionParameters || !descriptor.expressionsMenu) throw new Exception("Expression assets missing");
-        if (descriptor.expressionsMenu.controls.Count != 1 || !descriptor.expressionsMenu.controls[0].subMenu) throw new Exception("Submenu missing");
-        if (!AnimationUtility.GetCurveBindings(AssetDatabase.LoadAssetAtPath<AnimationClip>("Assets/nxclone-smoke/clone-1-frozen-pose.anim")).Any(x => x.propertyName == "FreezeToWorld" && x.type == typeof(VRCRotationConstraint))) throw new Exception("Freeze pose curve missing");
+        if (descriptor.expressionsMenu.controls.Count != 2 || !descriptor.expressionsMenu.controls.Any(x => x.name == "nxclone" && x.subMenu)) throw new Exception("Submenu missing");
+        var frozenPose = AssetDatabase.LoadAssetAtPath<AnimationClip>("Assets/nxclone-smoke/clone-1-whole-pose-frozen.anim");
+        if (!frozenPose || !AnimationUtility.GetCurveBindings(frozenPose).Any(x =>
+            x.propertyName == "m_IsActive" && x.type == typeof(GameObject) && x.path.Contains("nxclone freeze constraints")))
+            throw new Exception("Native pose-freeze host curve missing");
+        if (!fx.layers.Any(x => x.name == "nxclone 1 whole pose freeze")) throw new Exception("Whole-clone freeze FX layer missing");
         if (!fx.parameters.Any(x => x.name.StartsWith("nxclone_scale") && x.type == AnimatorControllerParameterType.Float)) throw new Exception("Scale parameter missing");
         if (!AnimationUtility.GetCurveBindings(AssetDatabase.LoadAssetAtPath<AnimationClip>("Assets/nxclone-smoke/scale-1.anim")).Any(x => x.propertyName == "m_LocalScale.x")) throw new Exception("Scale clip missing");
         var bindings = AnimationUtility.GetCurveBindings(AssetDatabase.LoadAssetAtPath<AnimationClip>("Assets/nxclone-smoke/clone-1-world.anim"));
@@ -111,11 +166,16 @@ public static class NxCloneSmoke
         AssetDatabase.CreateFolder("Assets", "nxclone-smoke-fx");
         typeof(NxCloneWindow).GetField("avatar", BindingFlags.NonPublic | BindingFlags.Instance).SetValue(window, secondDescriptor);
         typeof(NxCloneWindow).GetField("worldDrop", BindingFlags.NonPublic | BindingFlags.Instance).SetValue(window, false);
+        typeof(NxCloneWindow).GetField("copyFxAnimations", BindingFlags.NonPublic | BindingFlags.Instance).SetValue(window, true);
         typeof(NxCloneWindow).GetField("runtimeScale", BindingFlags.NonPublic | BindingFlags.Instance).SetValue(window, false);
         typeof(NxCloneWindow).GetField("poseFreeze", BindingFlags.NonPublic | BindingFlags.Instance).SetValue(window, false);
         typeof(NxCloneWindow).GetField("afterimages", BindingFlags.NonPublic | BindingFlags.Instance).SetValue(window, false);
         method.Invoke(window, new object[] { secondDescriptor, "Assets/nxclone-smoke-fx", secondGroup.transform, new System.Collections.Generic.List<Transform> { secondClone.transform }, new System.Collections.Generic.List<Transform>() });
         AssetDatabase.SaveAssets();
+        if (secondDescriptor.expressionParameters.parameters.Any(p => string.IsNullOrEmpty(p.name)))
+            throw new Exception("Disabled options added an empty expression parameter");
+        var defaultCloneMenu = secondDescriptor.expressionsMenu.controls.Single(c => c.name == "nxclone").subMenu.controls.Single(c => c.name == "Clone 1").subMenu;
+        if (defaultCloneMenu.controls.Any(c => c.name == "Freeze pose")) throw new Exception("Disabled freeze option left a broken toggle");
         var mirroredFx = secondDescriptor.baseAnimationLayers[0].animatorController as AnimatorController;
         var mirroredClip = AssetDatabase.LoadAssetAtPath<AnimationClip>("Assets/nxclone-smoke-fx/smile-fx.anim");
         if (!mirroredFx.animationClips.Contains(mirroredClip)) throw new Exception("FX controller lost mirrored clip");

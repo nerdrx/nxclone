@@ -23,7 +23,8 @@ namespace nxclone
             Transform avatarRoot,
             Transform generatedVisualRoot,
             string generatedFolder,
-            string layerName = "nxclone visemes")
+            string layerName = "nxclone visemes",
+            string parameterName = VisemeParameter)
         {
             if (!controller || !source || !avatarRoot || !generatedVisualRoot ||
                 !AssetDatabase.IsValidFolder(generatedFolder)) return false;
@@ -50,9 +51,9 @@ namespace nxclone
             }
             if (validShapes == 0) return false;
 
-            var parameter = controller.parameters.FirstOrDefault(p => p.name == VisemeParameter);
-            if (parameter != null && parameter.type != AnimatorControllerParameterType.Int) return false;
-            if (parameter == null) controller.AddParameter(VisemeParameter, AnimatorControllerParameterType.Int);
+            var parameter = controller.parameters.FirstOrDefault(p => p.name == parameterName);
+            if (parameter != null && parameter.type != AnimatorControllerParameterType.Int && parameter.type != AnimatorControllerParameterType.Float) return false;
+            if (parameter == null) controller.AddParameter(parameterName, AnimatorControllerParameterType.Int);
 
             var machine = new AnimatorStateMachine { name = layerName };
             AssetDatabase.AddObjectToAsset(machine, controller);
@@ -90,7 +91,12 @@ namespace nxclone
                 transition.hasExitTime = false;
                 transition.duration = 0f;
                 transition.canTransitionToSelf = false;
-                transition.AddCondition(AnimatorConditionMode.Equals, viseme, VisemeParameter);
+                if (parameter != null && parameter.type == AnimatorControllerParameterType.Float)
+                {
+                    transition.AddCondition(AnimatorConditionMode.Greater, viseme - 0.5f, parameterName);
+                    transition.AddCondition(AnimatorConditionMode.Less, viseme + 0.5f, parameterName);
+                }
+                else transition.AddCondition(AnimatorConditionMode.Equals, viseme, parameterName);
             }
 
             controller.AddLayer(layer);

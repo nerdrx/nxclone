@@ -1,6 +1,8 @@
 using System;
 using UnityEngine;
 using VRC.SDKBase.Editor.BuildPipeline;
+using VRC.SDK3.Avatars.Components;
+using VRC.SDK3.Avatars.ScriptableObjects;
 
 namespace nxclone
 {
@@ -17,7 +19,8 @@ namespace nxclone
 
     public sealed class NxClonePreprocessor : IVRCSDKPreprocessAvatarCallback
     {
-        public int callbackOrder => int.MaxValue - 50;
+        // Build after armature tools, before late parameter compression.
+        public int callbackOrder => int.MaxValue - 200;
 
         public bool OnPreprocessAvatar(GameObject avatar)
         {
@@ -35,6 +38,29 @@ namespace nxclone
                 Debug.LogException(e, avatar);
                 return false;
             }
+        }
+    }
+
+    public sealed class NxCloneDeferredBudgetValidation : IVRCSDKPreprocessAvatarCallback
+    {
+        // VRCFury's Parameter Compressor is max-100; run after it and before SDK validation.
+        public int callbackOrder => int.MaxValue - 10;
+
+        public bool OnPreprocessAvatar(GameObject avatar)
+        {
+            var marker = avatar ? avatar.GetComponent<NxCloneDeferredParameterBudget>() : null;
+            if (!marker) return true;
+
+            int cost = 0;
+            var descriptor = avatar.GetComponent<VRCAvatarDescriptor>();
+            if (descriptor && descriptor.customExpressions && descriptor.expressionParameters)
+                cost = descriptor.expressionParameters.CalcTotalCost();
+
+            UnityEngine.Object.DestroyImmediate(marker);
+            if (cost <= VRCExpressionParameters.MAX_PARAMETER_COST) return true;
+
+            Debug.LogError($"nxclone: VRCFury compression left the avatar at {cost}/{VRCExpressionParameters.MAX_PARAMETER_COST} synced parameter bits. Reduce or remove synced parameters before upload.", avatar);
+            return false;
         }
     }
 }

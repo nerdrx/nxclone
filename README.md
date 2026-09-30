@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <code>0.2.1 preview</code> &nbsp; <code>Unity 2022.3</code> &nbsp; <code>PC VRChat</code> &nbsp; <code>VPM</code>
+  <code>0.3.0 preview</code> &nbsp; <code>Unity 2022.3</code> &nbsp; <code>PC VRChat</code> &nbsp; <code>VPM</code>
 </p>
 
 nxclone is a source-first editor helper for VRChat avatar clones. It checks avatar requirements before generating a scene copy with optional translucent afterimages and independent FX toggles assembled during upload. It does not ask you to log in or contact a license server.
@@ -11,11 +11,11 @@ nxclone is a source-first editor helper for VRChat avatar clones. It checks avat
 <h2 align="center"><a href="https://nerdrx.github.io/nxclone/#install">Install nxclone</a></h2>
 <p align="center">
   ALCOM / Creator Companion<br /><br />
-  <a href="https://github.com/nerdrx/nxclone/releases/tag/v0.2.1">Download preview</a> &nbsp;·&nbsp;
+  <a href="https://github.com/nerdrx/nxclone/releases/tag/v0.3.0">Download preview</a> &nbsp;·&nbsp;
   <a href="docs/INSTALL.md">Installation help</a>
 </p>
 
-Add the nxclone repository, then install **nxclone** in your avatar project. The current preview is **0.2.1**.
+Add the nxclone repository, then install **nxclone** in your avatar project. The current preview is **0.3.0**.
 
 <details><summary>Manual VPM repository URL</summary>
 
@@ -29,33 +29,53 @@ https://nerdrx.github.io/nxclone/index.json
 
 ## Features
 
-| Feature | What it does |
+| Feature | Controls |
 | :--- | :--- |
-| **Avatar check** | Explains rig, bone path, parameter space, and menu space blockers before generation. |
-| **Clone layout** | Configures up to four clones independently: scene source, offset, scale, X mirror, and root or body-bone attachment. Layout presets save reusable settings. |
-| **Runtime controls** | Adds independent clone and afterimage visibility toggles (off on spawn), optional per-clone world drop and pose freeze, and an optional in-game scale dial. |
-| **Expressions** | Copies compatible blendshape visemes and mirrors renderer, blendshape, and object-toggle curves from the root FX controller onto root-source clones. |
-| **Afterimages** | Adds up to four flat, single-color translucent silhouettes with their own toggle. The main avatar silhouette takes priority. Constraint feedback adjusts the lag. The lag varies with frame rate. |
-| **Generated assets** | Creates missing FX, expression menu, and parameter assets on the scene copy; copies existing custom assets. Originals stay unchanged. |
-| **Local workflow** | Uses source code and Unity/VRChat SDK APIs. No vendor DLL, purchased asset, account login, or network step. |
+| Clone layout | Up to four sources, root/bone/custom anchors, position and rotation offsets, scale, mirror, presets and scene handles. Empty source and anchor fields use the avatar root. |
+| Visibility | Clones start hidden. Master visibility, individual enable switches and afterimages have separate controls. |
+| Placement | World drop holds position, rotation and scale. Turning it off resumes the selected anchor. |
+| Pose | Whole-body freeze, grabbable limbs, optional limb IK and remote hand/foot contact attachment. |
+| Recording | Sampled body, hips and world movement with record, replay and speed controls. Independent clone FX adds gesture/expression snapshots. |
+| Expressions | Visual FX mirroring, copied external controllers and menus, optional independent self-clone controllers and transition locks. Main-avatar built-ins remain read-only. |
+| Wear | Select one clone as the visible body, hide the original renderers, then return to the original FX controls. |
+| Afterimages | Flat single-color transparent silhouettes, primary-body masking, independent toggle and optional gesture command. |
+| Setup | Missing FX/menu/parameter assets created on a scene copy. Full menus wrap and paginate. Optional VRCFury parameter compression with a final upload budget check. |
 
 ## Avatar requirements
 
-- Scene avatar root with a `VRCAvatarDescriptor`, valid `Animator`, and humanoid rig.
-- Each clone source needs the same bone hierarchy as the root. Leaving its source empty uses the root avatar.
-- One free expression menu slot. Controls use one parameter bit for clone visibility, one for afterimage visibility, one per clone for world drop, one per clone for pose freeze, and eight for the scale dial when those options are enabled. Missing expression assets are created automatically.
-- PC shader support for translucent afterimages. Quest needs a separate mobile shader.
+- Scene avatar with a VRC Avatar Descriptor, valid humanoid Animator and skinned meshes.
+- Each source needs a humanoid rig and mesh bones inside its hierarchy. Standard humanoid bones can map across differently named rigs. Unmatched accessory bones produce a warning.
+- Enough synced parameter space for selected controls; the check explains shortages. Missing expression assets are created automatically. Existing menu controls are preserved.
+- PC shader support for afterimages. A separate mobile shader would be needed for Quest.
 
-Open **Tools → nxclone**, choose the avatar and options, review the check, then select **Generate scene copy**. The scene copy contains hidden preview meshes and an nxclone setup component. Final meshes and controls assemble during SDK upload after VRCFury Armature Link and other avatar tools finish. Regenerate from the original avatar when updating from 0.2.0. Clones multiply mesh and constraint counts; [VRChat's PC performance ranks](https://creators.vrchat.com/avatars/avatar-performance-ranking-system/) list 350 constraints as the upper Poor threshold.
+Open **Tools → nxclone**, select the original avatar, configure options and choose **Generate scene copy**. Final extraction runs after VRCFury Armature Link during SDK preprocessing, then before VRCFury parameter compression. **Regenerate from the original avatar after updating an older nxclone version.** Existing uploaded avatars do not change automatically.
 
+## Control costs and limits
 
+| Option | Synced bits |
+| :--- | ---: |
+| Master visibility | 1 |
+| Individual enable / world drop / freeze / posing / IK | 1 per selected control per clone |
+| Afterimage visibility | 1 |
+| Scale dial | 8 |
+| Body record + replay + speed | 10 per clone |
+| Wear selector | 8 total |
+| Contact attachment | 1 per tracker; seven tracking inputs remain local |
+| Gesture commands / expression snapshot buffers | 0 additional |
 
-Flat afterimages use geometry silhouettes: textures, alpha-cutout holes, and material displacement are not reproduced. The shaders reserve stencil bits 0 and 1; world shaders or camera effects using those bits can interfere. Opaque world depth still occludes the trail. Afterimages and their invisible main-avatar mask share a toggle and stay off on spawn.
+Copied source-menu parameters and FX transition locks add their own cost. **Defer parameter limit to VRCFury** requires VRCFury; upload is still rejected if the final cost exceeds 256 bits. Recording supports up to 15 samples, reduced to reserve sources for world contact attachment and wear. More samples, meshes and trackers increase avatar cost.
 
-## Current scope
+## Behavior and compatibility
 
-This preview does not implement motion recording/playback, interactive limb posing, or Final IK. Presets store layout and options; scene source references must be reselected when loading a preset. FX curve mirroring applies only when a clone uses the root avatar as its source. Afterimage delay uses constraint feedback, not a fixed duration. [VRLabs explains the feedback method.](https://github.com/VRLabs/Damping-Constraints)
+- Default placement is the root with zero offset. Bone anchors apply offsets in the selected anchor's frame.
+- Afterimage lag uses constraint feedback, so it varies with frame rate. It is not a fixed millisecond delay.
+- Afterimages are geometry silhouettes: textures, cutout holes and material displacement are not reproduced. Stencil bits 0 and 1 are reserved; opaque scene depth still occludes them.
+- Independent FX requires transferable animation bindings. If a source clip animates a component removed from clone visuals, generation names the clip and track and explains how to disable or remove it.
+- Presets store settings; scene source and custom-anchor references must be reselected.
+- Remote contacts need avatar interaction permissions. Built-in body tags such as HandL and FootR are normally generated on humanoid avatars; custom tags require matching senders. [VRChat contact tags](https://creators.vrchat.com/common-components/contacts/built-in-contact-tags/).
 
-The editor source compiles against Unity 2022.3.22f1 and VRChat SDK 3.10.2. Isolated Linux Unity tests passed full SDK preprocessing on the Nixomi avatar, checked linked mesh/bone mappings, and executed clone/afterimage toggles, world drop, pose freeze, and scale through its generated Animator. Additional checks preserve source clips and keep material swaps out of silhouette shaders. An offscreen GPU render under headless Gamescope verified uniform opacity and main-avatar silhouette priority. Live VRChat and the Windows editor remain untested.
+## Validation
 
-This repository contains original source only. Do not commit purchased `.unitypackage` files, vendor DLLs, or avatar assets. Licensed under MIT. [Read the package manifest](Packages/dev.nx.nxclone/package.json) · [Report an issue](https://github.com/nerdrx/nxclone/issues).
+Linux Unity 2022.3.22f1 tests cover native constraint movement/drop, pose ownership, capture/replay/recapture, menu composition, FX remapping and VRCFury preprocessing/compression. SDK stubs expose FinalIK, parameter-driver and layer-control serialization; their VRChat runtime behavior still needs an in-game check. Windows and live multi-user VRChat remain unverified. [Detailed checks and remaining limits](docs/PARITY.md).
+
+Editor code is independent and MIT licensed. Bundled VRLabs Contact Tracker assets retain their MIT license. Purchased packages, vendor DLLs and avatar assets are excluded from distribution. [Package manifest](Packages/dev.nx.nxclone/package.json) · [Report an issue](https://github.com/nerdrx/nxclone/issues).

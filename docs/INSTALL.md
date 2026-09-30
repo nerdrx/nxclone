@@ -8,4 +8,8 @@ https://nerdrx.github.io/nxclone/index.json
 
 In Creator Companion, open **Settings → Packages → Add Repository**, paste the URL, and confirm. Then open your avatar project, add **nxclone**, and choose **Tools → nxclone** in Unity.
 
-The package requires VRChat Avatars SDK 3.10.2 or newer. Start with a copy of your avatar project. The avatar check lists rig and capacity blockers. Missing FX and expression assets are created on the generated avatar copy. Version 0.2.1 assembles final clones after avatar build tools finish during SDK upload, so VRCFury Armature Link applies before extraction. Clone and afterimage toggles start off. When updating from 0.2.0, regenerate from your original avatar. Isolated Linux SDK preprocessing, Animator controls, and offscreen silhouette rendering passed; live VRChat and Windows still require testing.
+The package requires VRChat Avatars SDK 3.10.2+. Open **Tools → nxclone**, select your original scene avatar and review the check. Missing FX and expression assets are created on the generated copy. Menus wrap and paginate automatically.
+
+After updating to 0.3.0, regenerate from your original avatar. Clones start hidden; afterimages have an independent toggle. An empty anchor uses the avatar root. World drop holds placement until switched off.
+
+Final extraction runs after VRCFury Armature Link. Optional deferred parameter budgeting runs before its compressor and checks the final 256-bit limit. The new posing, IK, recording, wear and contact options are documented in the [usage guide](https://github.com/nerdrx/nxclone#features). [Validation limits](PARITY.md) separate native Linux checks from live VRChat and Windows tests.

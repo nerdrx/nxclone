@@ -17,16 +17,18 @@ namespace nxclone
             Transform avatarRoot,
             IReadOnlyList<Transform> generatedVisuals,
             string generatedFolder,
-            bool silhouetteOnly = false)
+            bool silhouetteOnly = false,
+            Transform sourceVisual = null)
         {
             if (!copiedController || !avatarRoot || generatedVisuals == null ||
-                !AssetDatabase.IsValidFolder(generatedFolder)) return 0;
+                !AssetDatabase.IsValidFolder(generatedFolder) ||
+                (sourceVisual && sourceVisual != avatarRoot && !sourceVisual.IsChildOf(avatarRoot))) return 0;
 
             var clips = new Dictionary<AnimationClip, AnimationClip>();
             var trees = new Dictionary<BlendTree, BlendTree>();
             var visitedTrees = new HashSet<BlendTree>();
             foreach (var layer in copiedController.layers)
-                CloneMotions(layer.stateMachine, clips, trees, visitedTrees, avatarRoot, generatedVisuals, generatedFolder, silhouetteOnly);
+                CloneMotions(layer.stateMachine, clips, trees, visitedTrees, avatarRoot, generatedVisuals, generatedFolder, silhouetteOnly, sourceVisual);
 
             EditorUtility.SetDirty(copiedController);
             int copied = 0;
@@ -37,30 +39,32 @@ namespace nxclone
         static void CloneMotions(AnimatorStateMachine machine,
             Dictionary<AnimationClip, AnimationClip> clips,
             Dictionary<BlendTree, BlendTree> trees, HashSet<BlendTree> visitedTrees, Transform root,
-            IReadOnlyList<Transform> visuals, string folder, bool silhouetteOnly)
+            IReadOnlyList<Transform> visuals, string folder, bool silhouetteOnly, Transform sourceVisual)
         {
+            // Synced AnimatorController layers intentionally have no independent state machine.
+            if (!machine) return;
             foreach (var child in machine.states)
-                child.state.motion = CloneMotion(child.state.motion, clips, trees, visitedTrees, root, visuals, folder, silhouetteOnly);
+                child.state.motion = CloneMotion(child.state.motion, clips, trees, visitedTrees, root, visuals, folder, silhouetteOnly, sourceVisual);
             foreach (var child in machine.stateMachines)
-                CloneMotions(child.stateMachine, clips, trees, visitedTrees, root, visuals, folder, silhouetteOnly);
+                CloneMotions(child.stateMachine, clips, trees, visitedTrees, root, visuals, folder, silhouetteOnly, sourceVisual);
         }
 
         static Motion CloneMotion(Motion motion, Dictionary<AnimationClip, AnimationClip> clips,
             Dictionary<BlendTree, BlendTree> trees, HashSet<BlendTree> visitedTrees,
-            Transform root, IReadOnlyList<Transform> visuals, string folder, bool silhouetteOnly)
+            Transform root, IReadOnlyList<Transform> visuals, string folder, bool silhouetteOnly, Transform sourceVisual)
         {
             if (motion is AnimationClip clip)
             {
                 if (!clips.TryGetValue(clip, out var copy))
                 {
-                    copy = HasRemappableBindings(clip, root, visuals, silhouetteOnly) ? Object.Instantiate(clip) : clip;
+                    copy = HasRemappableBindings(clip, root, visuals, silhouetteOnly, sourceVisual) ? Object.Instantiate(clip) : clip;
                     clips.Add(clip, copy);
                     if (copy != clip)
                     {
                         copy.name = clip.name + " (nxclone FX)";
                         AssetDatabase.CreateAsset(copy, AssetDatabase.GenerateUniqueAssetPath(
                             $"{folder}/{Sanitize(clip.name)}-fx.anim"));
-                        CopyBindings(clip, copy, root, visuals, silhouetteOnly);
+                        CopyBindings(clip, copy, root, visuals, silhouetteOnly, sourceVisual);
                     }
                 }
                 return copy;
@@ -82,7 +86,7 @@ namespace nxclone
                 var children = copy.children;
                 for (int i = 0; i < children.Length; i++)
                 {
-                    children[i].motion = CloneMotion(children[i].motion, clips, trees, visitedTrees, root, visuals, folder, silhouetteOnly);
+                    children[i].motion = CloneMotion(children[i].motion, clips, trees, visitedTrees, root, visuals, folder, silhouetteOnly, sourceVisual);
                 }
                 copy.children = children;
                 EditorUtility.SetDirty(copy);
@@ -92,12 +96,12 @@ namespace nxclone
         }
 
         static void CopyBindings(AnimationClip source, AnimationClip destination,
-            Transform root, IReadOnlyList<Transform> visuals, bool silhouetteOnly)
+            Transform root, IReadOnlyList<Transform> visuals, bool silhouetteOnly, Transform sourceVisual)
         {
             foreach (var binding in AnimationUtility.GetCurveBindings(source))
             {
                 if (!Eligible(binding, silhouetteOnly)) continue;
-                var sourceTarget = Resolve(root, binding.path);
+                if (!TryResolveSource(root, sourceVisual, binding.path, out var sourceTarget, out var relativePath)) continue;
                 if (!sourceTarget || !HasTargetComponent(sourceTarget, binding)) continue;
                 var curve = AnimationUtility.GetEditorCurve(source, binding);
                 if (curve == null) continue;
@@ -105,7 +109,7 @@ namespace nxclone
                 foreach (var visual in visuals)
                 {
                     if (!visual) continue;
-                    var target = Resolve(visual, binding.path);
+                    var target = Resolve(visual, relativePath);
                     if (!target || !HasTargetComponent(target, binding)) continue;
                     var cloneBinding = binding;
                     cloneBinding.path = AnimationUtility.CalculateTransformPath(target, root);
@@ -116,13 +120,13 @@ namespace nxclone
             foreach (var binding in AnimationUtility.GetObjectReferenceCurveBindings(source))
             {
                 if (!Eligible(binding, silhouetteOnly)) continue;
-                var sourceTarget = Resolve(root, binding.path);
+                if (!TryResolveSource(root, sourceVisual, binding.path, out var sourceTarget, out var relativePath)) continue;
                 if (!sourceTarget || !HasTargetComponent(sourceTarget, binding)) continue;
                 var curve = AnimationUtility.GetObjectReferenceCurve(source, binding);
                 foreach (var visual in visuals)
                 {
                     if (!visual) continue;
-                    var target = Resolve(visual, binding.path);
+                    var target = Resolve(visual, relativePath);
                     if (!target || !HasTargetComponent(target, binding)) continue;
                     var cloneBinding = binding;
                     cloneBinding.path = AnimationUtility.CalculateTransformPath(target, root);
@@ -131,24 +135,24 @@ namespace nxclone
             }
         }
 
-        static bool HasRemappableBindings(AnimationClip clip, Transform root, IReadOnlyList<Transform> visuals, bool silhouetteOnly)
+        static bool HasRemappableBindings(AnimationClip clip, Transform root, IReadOnlyList<Transform> visuals, bool silhouetteOnly, Transform sourceVisual)
         {
             foreach (var binding in AnimationUtility.GetCurveBindings(clip))
-                if (HasDestination(binding, root, visuals, silhouetteOnly)) return true;
+                if (HasDestination(binding, root, visuals, silhouetteOnly, sourceVisual)) return true;
             foreach (var binding in AnimationUtility.GetObjectReferenceCurveBindings(clip))
-                if (HasDestination(binding, root, visuals, silhouetteOnly)) return true;
+                if (HasDestination(binding, root, visuals, silhouetteOnly, sourceVisual)) return true;
             return false;
         }
 
-        static bool HasDestination(EditorCurveBinding binding, Transform root, IReadOnlyList<Transform> visuals, bool silhouetteOnly)
+        static bool HasDestination(EditorCurveBinding binding, Transform root, IReadOnlyList<Transform> visuals, bool silhouetteOnly, Transform sourceVisual)
         {
             if (!Eligible(binding, silhouetteOnly)) return false;
-            var source = Resolve(root, binding.path);
+            if (!TryResolveSource(root, sourceVisual, binding.path, out var source, out var relativePath)) return false;
             if (!source || !HasTargetComponent(source, binding)) return false;
             foreach (var visual in visuals)
             {
                 if (!visual) continue;
-                var target = Resolve(visual, binding.path);
+                var target = Resolve(visual, relativePath);
                 if (target && HasTargetComponent(target, binding)) return true;
             }
             return false;
@@ -177,6 +181,24 @@ namespace nxclone
 
         static Transform Resolve(Transform root, string path) =>
             string.IsNullOrEmpty(path) ? root : root.Find(path);
+
+        static bool TryResolveSource(Transform root, Transform sourceVisual, string bindingPath,
+            out Transform source, out string relativePath)
+        {
+            if (!sourceVisual)
+            {
+                relativePath = bindingPath;
+                source = Resolve(root, bindingPath);
+                return source;
+            }
+            string prefix = AnimationUtility.CalculateTransformPath(sourceVisual, root);
+            if (bindingPath == prefix) relativePath = string.Empty;
+            else if (prefix.Length == 0) relativePath = bindingPath;
+            else if (bindingPath.StartsWith(prefix + "/", System.StringComparison.Ordinal)) relativePath = bindingPath.Substring(prefix.Length + 1);
+            else { source = null; relativePath = null; return false; }
+            source = Resolve(sourceVisual, relativePath);
+            return source;
+        }
 
         static string Sanitize(string value)
         {

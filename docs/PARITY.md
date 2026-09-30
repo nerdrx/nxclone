@@ -1,0 +1,38 @@
+# Feature coverage and validation
+
+Version 0.3.0 adds the previously missing native controls. This matrix distinguishes implementation from runtime proof; there is no claim of complete superiority over another product.
+
+## Implemented
+
+| Feature | Validation |
+| :--- | :--- |
+| Root/bone/custom anchors, zero default offset, rotation offsets | Native SDK movement, rotation, hidden-driver and scale tests on Linux; sustained world-drop and resume tests with SDK 3.10.2 and 3.10.5. |
+| Hidden spawn, master and individual visibility, afterimage toggle | Generated Animator controls and menu/parameter composition checks. |
+| VRCFury Armature Link | Full SDK preprocessing of an isolated copy of the supplied avatar, with six linked mesh/bone mappings checked. |
+| Flat afterimages and primary silhouette priority | Offscreen GPU render under headless Gamescope in 0.2.1; shaders are unchanged. Geometry silhouettes and reserved stencil bits remain the documented limits. |
+| Whole-body freeze and grabbable posing | Actual native solver ownership tests: source follow, posing, freeze and return to live. Synthetic tests do not simulate a VRChat hand grab. |
+| Body recording, hips and sampled root movement | Native capture, playback, stop and recapture tests. A durable synced take phase replaces a brief request pulse; capture stays in a non-looping clip tail so native freeze caches survive playback. Tests mirror SDK driver writes explicitly. |
+| Independent clone FX and transition lock | Native root/clone state independence, base-layer weight, copied clips/menus/drivers, numeric built-in aliases and source preservation tests. |
+| Gesture commands | Native press/hold/release/menu state-machine tests with standard and VRCFury numeric inputs. SDK command schema checked; driver writes explicitly mirrored in editor tests. |
+| Expression/gesture recording | Timed snapshot and playback layers, observer-side request handling, typed buffers and backup/restore schema checks. Actual SDK Copy execution needs VRChat. |
+| Wearing a clone | Exclusive integer selector, native override-layer composition, root placement and mask transfer checks. Conditional defaults restore unowned renderer, mask and placement properties; existing FX tracks retain ownership. SDK layer-control execution needs VRChat. |
+| Limb IK | Four humanoid chains, limb-length grabbable targets, native shoulder/hip anchors, ownership guards and SDK layer-control schema. Editor FinalIK stubs do not execute the solver. |
+| Whole-clone and limb contact attachment | Four standard hand/foot tags, separate target drivers, preserved normal sources and freeze state, independent namespaces and synced control switches checked. Remote tracking needs a live multi-user test. |
+| Menus, presets and handles | Existing controls preserved, full menus wrapped, generated menus paginated. Scene-object references must be reselected after loading presets. |
+| VRCFury parameter compression | Full SDK callback pipeline once: observer after nxclone saw an over-budget avatar; the real compressor unsynced five generated parameters and the final gate accepted exactly 256 bits. Separate 257-bit rejection test passes. |
+
+## Remaining validation and limits
+
+- Live VRChat, multi-user contact tracking and Windows editor operation remain unverified.
+- FinalIK and VRChat parameter-driver/layer-control behavior cannot be inferred from SDK stub serialization alone.
+- Afterimage feedback delay varies with frame rate; it is not a fixed time delay.
+- Recordings are sampled, not continuous motion capture. More samples and trackers increase avatar cost.
+- Clone extraction strips unsupported components. Independent FX generation rejects their animation tracks with the clip, path, component and a suggested workaround; arbitrary component parity is not claimed.
+- Standard humanoid bones can map by identity across differing hierarchies. Unmatched accessory bones keep their source pose and produce a warning.
+- Clones do not replace the avatar descriptor or its tracking/view position. Wear selects the visible body.
+
+## Reproduce
+
+See [test commands and their scope](../Tests~/README.md). Tests operate on disposable projects, never the original supplied avatar project. Persistent local logs are kept in ignored `artifacts/validation/`.
+
+Contact assumptions follow [VRChat's built-in body tags](https://creators.vrchat.com/common-components/contacts/built-in-contact-tags/) and [contact receiver settings](https://creators.vrchat.com/common-components/contacts/). LimbIK is an [allowed component](https://creators.vrchat.com/avatars/whitelisted-avatar-components/whitelisted-avatar-components/), but VRChat's implementation differs from stock FinalIK.
