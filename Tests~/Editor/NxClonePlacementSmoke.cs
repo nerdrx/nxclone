@@ -132,7 +132,7 @@ public static class NxClonePlacementSmoke
                 freezeOk = Near(driver.position, beforeFreeze) && NearRotation(driver.rotation, beforeFreezeRotation) && Near(driver.lossyScale, beforeFreezeScale);
                 Debug.Log($"PLAY frozen expected={beforeFreeze:F3} actual={driver.position:F3} scale={driver.lossyScale:F3} avatar={avatar.position:F3} flag={placement.FreezeToWorld}");
                 animator.SetBool("drop", false); stage++;
-                
+
             }
             else if (stage == 4)
             {

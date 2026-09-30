@@ -42,7 +42,7 @@ https://github.com/VRLabs/Contact-Tracker/assets/76777936/39dd0fb1-9333-42d3-91b
 * Expand the prefab hierarchy and find ``Tracker Target``.
 * Move ``Tracker Target`` outside of ``Contact Tracker`` and place it anywhere in your avatar's hierarchy as needed.
 
-> [!NOTE]  
+> [!NOTE]
 > When building for Quest, you will have to remove unsupported components and shaders
 
 ## How to use
