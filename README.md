@@ -1,27 +1,56 @@
-# nxclone
+<p align="center">
+  <img src="docs/assets/nxclone-banner.svg" width="100%" alt="nxclone — avatar clones and translucent afterimages" />
+</p>
 
-Independent, source-first VRChat avatar clone builder targeting Unity 2022.3 on Linux and Windows. No login, license server, vendor DLL, or vendor assets.
+<p align="center">
+  <code>0.1.1 preview</code> &nbsp; <code>Unity 2022.3</code> &nbsp; <code>PC VRChat</code> &nbsp; <code>VPM</code>
+</p>
 
-## Install
+nxclone is a source-first editor helper for VRChat avatar clones. It checks avatar requirements before generating a scene copy, an FX toggle, and optional translucent afterimages. It does not ask you to log in or contact a license server.
 
-In VRChat Creator Companion, add the repository URL `https://raw.githubusercontent.com/nerdrx/nxclone/main/index.json`, then add `nxclone` to an avatar project. For local development, add `Packages/dev.nx.nxclone` as a user package. Requires VRChat Avatars SDK 3.7.3 or newer. Open **Tools > nxclone**.
+<h2 align="center"><a href="https://nerdrx.github.io/nxclone/#install">Install nxclone</a></h2>
+<p align="center">
+  ALCOM / Creator Companion<br /><br />
+  <a href="https://github.com/nerdrx/nxclone/releases/tag/v0.1.1">Download preview</a> &nbsp;·&nbsp;
+  <a href="docs/INSTALL.md">Installation help</a>
+</p>
+
+Add the nxclone repository, then install **nxclone** in your avatar project. The current preview is **0.1.1**.
+
+<details><summary>Manual VPM repository URL</summary>
+
+```text
+https://nerdrx.github.io/nxclone/index.json
+```
+
+</details>
+
+---
+
+## Features
+
+| Feature | What it does |
+| :--- | :--- |
+| **Avatar check** | Explains missing humanoid rig, clone bone paths, FX controller, expression assets, parameter space, and menu space before generation. |
+| **Clone layout** | Creates up to four visual clones with an adjustable offset and an in-game toggle. |
+| **Afterimages** | Adds up to four single-color translucent afterimages with adjustable constraint feedback. The lag varies with frame rate. |
+| **Generated assets** | Copies the FX controller, expression menu, and parameters into a new `Assets/nxclone-generated` folder. Original assets stay unchanged. |
+| **Local workflow** | Uses source code and Unity/VRChat SDK APIs. No vendor DLL, purchased asset, account login, or network step. |
 
 ## Avatar requirements
 
 - Scene avatar root with a `VRCAvatarDescriptor`, valid `Animator`, and humanoid rig.
-- Clone source with an identical transform hierarchy to the root. The default source is the root itself. Different meshes are fine if bone paths match.
-- An FX controller asset and Expressions Menu/Parameters assets are required for the in-game toggle. The builder creates copies of those assets; originals stay untouched.
-- Free expression menu slot and one free Bool expression parameter. The preflight displays exact blockers.
-- PC avatar shader support for the translucent afterimages. Quest needs a separate mobile shader.
+- Clone source with the same transform hierarchy as the root. The default source is the root itself. Different meshes are supported when bone paths match.
+- Custom FX controller plus Expressions Menu and Parameters assets.
+- One free expression menu slot and one free Bool expression parameter bit.
+- PC shader support for translucent afterimages. Quest needs a separate mobile shader.
 
-Choose clone count and offset. Optionally enable afterimages, choose count, dampening, and color. **Generate** creates a new scene avatar and a new generated assets folder under `Assets/nxclone-generated`. Inspect the avatar and test in Unity/VRChat before uploading. Generation can multiply mesh and constraint counts substantially.
+Open **Tools → nxclone**, choose the avatar and options, review the check, then select **Generate scene copy**. Inspect the generated avatar before uploading. Clones multiply mesh and constraint counts; [VRChat's PC performance ranks](https://creators.vrchat.com/avatars/avatar-performance-ranking-system/) list 350 constraints as the upper Poor threshold.
 
-Afterimage delay is constraint feedback: it is frame-rate dependent, not a fixed number of milliseconds. Existing blendshape and object-toggle animations are not automatically copied to the clones. This package does not implement recording, playback, limb attachment, or Final IK.
+## Current scope
 
-## Distribution
+This preview does not implement recording, playback, limb attachment, Final IK, or automatic copying of blendshape and object-toggle animations into clones. Afterimage delay uses constraint feedback, not a fixed duration. [VRLabs explains the feedback method.](https://github.com/VRLabs/Damping-Constraints)
 
-This repository contains only original source. Do not commit purchased `.unitypackage` files, vendor DLLs, or avatar assets. The VPM index points to the release zip.
+The editor source compiles against Unity 2022.3.22f1 and VRChat SDK 3.10.5 assemblies. The published VPM archive and SHA-256 listing were verified. Full Unity project import and VRChat upload remain unverified: the local Unity licensing client exits before project load. Linux and Windows editor behavior need an avatar-project test.
 
-## Validation status
-
-The editor source compiles against local Unity 2022.3.22f1 and VRChat SDK 3.10.5 assemblies. Full Unity batch import and VRChat upload remain unverified because the local Unity licensing client exits before project load. Test on a copy of your avatar before release.
+This repository contains original source only. Do not commit purchased `.unitypackage` files, vendor DLLs, or avatar assets. Licensed under MIT. [Read the package manifest](Packages/dev.nx.nxclone/package.json) · [Report an issue](https://github.com/nerdrx/nxclone/issues).

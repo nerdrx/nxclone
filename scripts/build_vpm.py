@@ -24,10 +24,13 @@ listing = dict(manifest, url=release_url, zipSHA256=hashlib.sha256(archive.read_
 index = json.loads((ROOT / "index.json").read_text()) if (ROOT / "index.json").exists() else {
     "name": "nxclone",
     "id": "dev.nx.nxclone",
-    "url": "https://raw.githubusercontent.com/nerdrx/nxclone/main/index.json",
+    "url": "https://nerdrx.github.io/nxclone/index.json",
     "author": "nerdrx@users.noreply.github.com",
     "packages": {manifest["name"]: {"versions": {version: listing}}},
 }
 index["packages"][manifest["name"]]["versions"][version] = listing
-(ROOT / "index.json").write_text(json.dumps(index, indent=2) + "\n")
+index["url"] = "https://nerdrx.github.io/nxclone/index.json"
+contents = json.dumps(index, indent=2) + "\n"
+(ROOT / "index.json").write_text(contents)
+(ROOT / "docs/index.json").write_text(contents)
 print(archive)

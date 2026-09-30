@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 440" role="img" aria-labelledby="title desc">
+  <title id="title">nxclone</title>
+  <desc id="desc">nxclone avatar clone and afterimage builder, shown as one violet avatar followed by translucent cyan silhouettes.</desc>
+  <defs>
+    <linearGradient id="panel" x2="1" y2="1"><stop stop-color="#17101f"/><stop offset="1" stop-color="#08090e"/></linearGradient>
+    <linearGradient id="main" x2="0" y2="1"><stop stop-color="#b175ff"/><stop offset="1" stop-color="#7700ff"/></linearGradient>
+    <symbol id="figure" viewBox="0 0 126 260">
+      <circle cx="63" cy="32" r="23"/>
+      <path d="M30 95Q31 70 63 70Q95 70 96 95L103 148L82 153L76 112L74 163L91 248H66L61 181L56 248H31L50 163L48 112L42 153L21 148Z"/>
+    </symbol>
+  </defs>
+  <rect width="1440" height="440" fill="#000"/>
+  <g aria-label="NX" transform="translate(88 46) scale(.085)">
+    <g fill="#7700FF" transform="translate(-56 552) scale(1 -1)">
+      <path d="M56 0V540H230L238 368L214 370Q220 439 244.5 478.5Q269 518 306.5 535Q344 552 390 552Q446 552 487.5 528Q529 504 552 458.5Q575 413 575 347V0H381V280Q381 319 376.5 346.5Q372 374 358.5 388.5Q345 403 319 403Q282 403 266 371Q250 339 250 280V0Z"/>
+      <path d="M551 0 739 272 553 540H753L851 386 947 540H1151L965 272L1154 0H954L855 160 755 0Z"/>
+    </g>
+  </g>
+  <text x="88" y="180" fill="#efeaff" font-family="system-ui,sans-serif" font-size="84" font-weight="800" letter-spacing="-3">nxclone</text>
+  <text x="92" y="222" fill="#bfa8ff" font-family="system-ui,sans-serif" font-size="25" font-weight="600">Avatar clones, made clearer.</text>
+  <path d="M92 246H270" stroke="#7700ff" stroke-width="3"/>
+  <text x="92" y="286" fill="#efeaff" font-family="system-ui,sans-serif" font-size="21">Create a clone. Leave a trail.</text>
+  <rect x="92" y="348" width="9" height="9" fill="#00e5ff"/>
+  <text x="116" y="357" fill="#aaa0bb" font-family="ui-monospace,monospace" font-size="12" font-weight="700" letter-spacing="2">VRCHAT / UNITY / VPM</text>
+  <rect x="612" y="28" width="800" height="384" rx="4" fill="url(#panel)" stroke="#3e344b"/>
+  <g fill="none" stroke="#24192f" stroke-width="1"><path d="M650 80H1370M650 150H1370M650 220H1370M650 290H1370M650 360H1370M690 58V384M790 58V384M890 58V384M990 58V384M1090 58V384M1190 58V384M1290 58V384"/></g>
+  <path d="M731 340C837 345 865 330 950 337S1135 344 1308 335" fill="none" stroke="#8051b7" stroke-width="2" stroke-dasharray="8 8"/>
+  <use href="#figure" x="655" y="88" width="126" height="260" fill="none" stroke="#48d9ff" stroke-width="3" opacity=".2"/>
+  <use href="#figure" x="750" y="88" width="126" height="260" fill="none" stroke="#48d9ff" stroke-width="3" opacity=".35"/>
+  <use href="#figure" x="845" y="88" width="126" height="260" fill="none" stroke="#48d9ff" stroke-width="3" opacity=".62"/>
+  <use href="#figure" x="970" y="88" width="126" height="260" fill="url(#main)" stroke="#c999ff" stroke-width="2"/>
+  <path d="M1100 206H1260" fill="none" stroke="#7700ff" stroke-width="3"/>
+  <circle cx="1100" cy="206" r="5" fill="#00e5ff"/>
+  <text x="1120" y="187" fill="#d8c1ff" font-family="ui-monospace,monospace" font-size="13" font-weight="700" letter-spacing="2">SOURCE</text>
+  <text x="1188" y="230" fill="#8feaff" font-family="ui-monospace,monospace" font-size="13" font-weight="700" letter-spacing="2">AFTERIMAGES</text>
+  <rect x="1000" y="370" width="352" height="1" fill="#493555"/>
+</svg>
