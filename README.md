@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <code>0.3.3 preview</code> &nbsp; <code>Unity 2022.3</code> &nbsp; <code>PC VRChat</code> &nbsp; <code>VPM</code>
+  <code>0.3.4 preview</code> &nbsp; <code>Unity 2022.3</code> &nbsp; <code>PC VRChat</code> &nbsp; <code>VPM</code>
 </p>
 
 nxclone is a source-first editor helper for VRChat avatar clones. It checks avatar requirements before generating a scene copy with optional translucent afterimages and independent FX toggles assembled during upload. It does not ask you to log in or contact a license server.
@@ -11,11 +11,11 @@ nxclone is a source-first editor helper for VRChat avatar clones. It checks avat
 <h2 align="center"><a href="https://nerdrx.github.io/nxclone/#install">Install nxclone</a></h2>
 <p align="center">
   ALCOM / Creator Companion<br /><br />
-  <a href="https://github.com/nerdrx/nxclone/releases/tag/v0.3.3">Download preview</a> &nbsp;·&nbsp;
+  <a href="https://github.com/nerdrx/nxclone/releases/tag/v0.3.4">Download preview</a> &nbsp;·&nbsp;
   <a href="docs/INSTALL.md">Installation help</a>
 </p>
 
-Add the nxclone repository, then install **nxclone** in your avatar project. The current preview is **0.3.3**.
+Add the nxclone repository, then install **nxclone** in your avatar project. The current preview is **0.3.4**.
 
 <details><summary>Manual VPM repository URL</summary>
 
@@ -69,6 +69,7 @@ Copied source-menu parameters and FX transition locks add their own cost. **Defe
 
 ## Behavior and compatibility
 
+- **Root movement: DancePartner** copies steps in the clone’s facing direction and turns it around its own root. With 180° yaw, your left becomes its left (your right). Hiding and showing captures a fresh starting point. Choose **Attached** for the previous root-relative following behavior; bone and custom anchors remain attached. Dance mode adds three constraints per clone and no expression parameters.
 - New clones default to 1 m forward from the avatar root, facing back toward it (180° yaw). Use **At anchor** for zero offset. Existing saved layouts retain their placement. Bone anchors apply offsets in the selected anchor's frame. Position dials adjust ±2 m per axis around the configured placement; 0.5 is neutral. Rotation dials add ±180° of pitch, yaw and roll to the configured orientation, in that order around successive local axes. Rotation does not change the configured placement position. Select the axes you need in each control group; the default selections are **Distance (Z)** and **Yaw (Y)**. Only enabled axes produce menus and synced parameters (16 bits per clone with those two defaults).
 - Afterimages follow the main avatar with zero placement offset. Each trail follows the full render rig, including armature ancestors. Newer trails blend over older ones; the primary silhouette masks every trail. Nearby fragments fade between 0.25 and 0.6 m from the camera. Afterimage lag uses constraint feedback, so it varies with frame rate. It is not a fixed millisecond delay.
 - Afterimages are geometry silhouettes: textures, cutout holes and material displacement are not reproduced. Stencil bits 0 through 4 are reserved; opaque scene depth still occludes them.

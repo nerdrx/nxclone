@@ -64,6 +64,7 @@ not distributed in this repository. The test temporarily disables VRCFury's
 Play Mode scan for its generated test avatar and restores the prior setting on
 exit.
 
+- `NxCloneDanceSmoke.Run`: native nonzero-origin/yaw root motion, clone-own-left stepping, turning without orbit, vertical movement, drop/resume, and visibility origin capture/reset. Omit `-quit`.
 - `NxClonePlacementSmoke.Run`: moves, rotates and scales a synthetic avatar;
   checks anchors, world drop, return to following, hidden visuals and trail lag.
 - `NxCloneRecordingSmoke.RunNativePlayMode`: checks captured local pose and

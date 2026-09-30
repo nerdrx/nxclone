@@ -164,6 +164,19 @@ public static class NxCloneOptionsSmoke
                 root.transform.Find("nxclone/world/placement-2/clone-2")
             };
             Assert(clones.All(clone => clone), "two linked clone visuals should be built");
+            foreach (var clone in clones)
+            {
+                var origin = NxClonePlacement.DanceReference(clone.parent);
+                Assert(origin && !origin.GetComponent<VRCParentConstraint>().FreezeToWorld, "default root slots must build a recapturable dance origin");
+                string originPath = AnimationUtility.CalculateTransformPath(origin, root.transform);
+                int index = Array.IndexOf(clones, clone) + 1;
+                foreach (var entry in new[] { (file: "off", value: 0f), (file: "on", value: 1f) })
+                {
+                    var visibilityClip = AssetDatabase.LoadAssetAtPath<AnimationClip>(Folder + $"/clone-{index}-{entry.file}.anim");
+                    var curve = AnimationUtility.GetEditorCurve(visibilityClip, EditorCurveBinding.FloatCurve(originPath, typeof(VRCParentConstraint), "FreezeToWorld"));
+                    Assert(curve != null && curve.Evaluate(0) == entry.value, "visibility must reset/capture the dance origin");
+                }
+            }
             var ghostMaterials = new[] { AssetDatabase.LoadAssetAtPath<Material>(Folder + "/afterimage-1.mat"), AssetDatabase.LoadAssetAtPath<Material>(Folder + "/afterimage-2.mat") };
             Assert(ghostMaterials.All(material => material) && ghostMaterials[0].color != ghostMaterials[1].color,
                 "multiple afterimages should have different default colours");

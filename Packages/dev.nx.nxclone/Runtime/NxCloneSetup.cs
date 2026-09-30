@@ -9,6 +9,8 @@ namespace nxclone
     [Flags]
     public enum NxCloneAxes { None = 0, X = 1, Y = 2, Z = 4, All = X | Y | Z }
 
+    public enum NxCloneMovement { Attached, DancePartner }
+
     public enum NxCloneWriteDefaults { Auto, Off, On }
 
     public enum NxCloneAttachPoint
@@ -26,6 +28,7 @@ namespace nxclone
         public Vector3 rotation = new Vector3(0f, 180f, 0f);
         public Vector3 scale = Vector3.one;
         public bool mirror;
+        public NxCloneMovement movement = NxCloneMovement.DancePartner;
         public NxCloneAttachPoint attachTo;
         public bool contactAnchor;
         public string contactTag = "HandL";

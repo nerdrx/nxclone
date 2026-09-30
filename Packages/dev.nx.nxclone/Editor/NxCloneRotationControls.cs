@@ -55,7 +55,8 @@ namespace nxclone
             string controllerPath = AssetDatabase.GetAssetPath(fx);
 
             var carriers = new Transform[selectedAxes.Length];
-            Transform parent = anchor;
+            var danceOrigin = NxClonePlacement.DanceReference(driver);
+            Transform parent = danceOrigin ? NxClonePlacement.ControlAnchor(driver) : anchor;
             for (int axis = 0; axis < selectedAxes.Length; axis++)
             {
                 int selectedAxis = selectedAxes[axis];
@@ -66,9 +67,14 @@ namespace nxclone
                 carrier.localScale = Vector3.one;
                 carriers[axis] = parent = carrier;
             }
-            var source = placement.Sources[0];
-            source.SourceTransform = carriers[carriers.Length - 1];
-            placement.Sources[0] = source;
+            if (danceOrigin)
+                anchor.SetParent(parent, false);
+            else
+            {
+                var source = placement.Sources[0];
+                source.SourceTransform = carriers[carriers.Length - 1];
+                placement.Sources[0] = source;
+            }
             placement.ApplyConfigurationChanges();
 
             string[] carrierPaths = carriers.Select(carrier => AnimationUtility.CalculateTransformPath(carrier, avatarRoot)).ToArray();

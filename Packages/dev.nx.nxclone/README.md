@@ -11,3 +11,5 @@ Regenerate from your original avatar when updating. Controls include visibility,
 Linux native tests cover constraints, capture/replay and SDK preprocessing. Live VRChat and Windows need validation; editor SDK stubs do not execute all runtime behaviors. Afterimage lag is frame-dependent and uses geometry silhouettes. Clone counts, samples and contact trackers increase avatar cost.
 
 Original editor code and licensed MIT VRLabs Contact Tracker assets are included. No purchased packages, vendor DLLs or avatar meshes are distributed.
+
+Root slots default to **DancePartner** movement: steps follow the clone’s facing axes and turns happen around its own root. Hide/show captures a fresh origin. Choose **Attached** to follow the avatar as an attached object; bone/custom anchors always use attachment. Dance mode adds three constraints per clone, without new parameters.

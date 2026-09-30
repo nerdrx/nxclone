@@ -89,6 +89,12 @@ namespace nxclone
                 slot.mirror = Toggle("Mirror X", slot.mirror);
                 slot.attachTo = (NxAttachPoint)EnumField("Attach to", slot.attachTo);
                 slot.anchor = (Transform)ObjectField("Custom anchor (optional)", slot.anchor, typeof(Transform), true);
+                if (slot.attachTo == NxAttachPoint.Root && !slot.anchor)
+                {
+                    slot.movement = (NxCloneMovement)EnumField("Root movement", slot.movement);
+                    if (slot.movement == NxCloneMovement.DancePartner)
+                        EditorGUILayout.HelpBox("Copies movement in the clone’s facing direction. Turning rotates the clone in place. Hide and show to reset its starting point.", MessageType.Info);
+                }
                 slot.contactAnchor = Toggle("Attach to remote contacts", slot.contactAnchor);
                 if (slot.contactAnchor)
                 {
@@ -173,7 +179,8 @@ namespace nxclone
                 if (afterimages) estimated += afterimageCount * avatar.GetComponentsInChildren<Transform>(true).Length * 3 + 2 * afterimageCount;
                 if (recording) estimated += EffectiveRecordingSamples() * slots.Sum(slot => (slot.source ? slot.source : avatar).GetComponentsInChildren<SkinnedMeshRenderer>(true)
                     .SelectMany(r => r.bones ?? Array.Empty<Transform>()).Where(t => t).Distinct().Count());
-                estimated += 2 + 2 * slots.Count;
+                estimated += 2 + 2 * slots.Count
+                    + 3 * slots.Count(slot => slot.movement == NxCloneMovement.DancePartner && slot.attachTo == NxAttachPoint.Root && !slot.anchor);
                 if (estimated > 350)
                     EditorGUILayout.HelpBox($"Up to {estimated} new constraints. VRChat rates PC avatars above 350 constraints Very Poor; review performance before upload.", MessageType.Warning);
             }
@@ -252,7 +259,7 @@ namespace nxclone
             slots = preset.slots == null || preset.slots.Count == 0
                 ? new List<NxCloneSlot> { new NxCloneSlot() }
                 : preset.slots.Take(4).Select(slot => slot == null ? new NxCloneSlot() : new NxCloneSlot {
-                    offset = slot.offset, rotation = slot.rotation, scale = slot.scale, mirror = slot.mirror, attachTo = slot.attachTo,
+                    offset = slot.offset, rotation = slot.rotation, scale = slot.scale, mirror = slot.mirror, movement = slot.movement, attachTo = slot.attachTo,
                     contactAnchor = slot.contactAnchor, contactTag = slot.contactTag, contactAllowSelf = slot.contactAllowSelf, contactAllowOthers = slot.contactAllowOthers
                 }).ToList();
             writeDefaults = preset.writeDefaults;
@@ -297,7 +304,7 @@ namespace nxclone
                 AssetDatabase.CreateAsset(preset, path);
             }
             Undo.RecordObject(preset, "Save nxclone setup");
-            preset.slots = slots.Select(slot => new NxCloneSlot { offset = slot.offset, rotation = slot.rotation, scale = slot.scale, mirror = slot.mirror, attachTo = slot.attachTo, contactAnchor = slot.contactAnchor, contactTag = slot.contactTag, contactAllowSelf = slot.contactAllowSelf, contactAllowOthers = slot.contactAllowOthers }).ToList();
+            preset.slots = slots.Select(slot => new NxCloneSlot { offset = slot.offset, rotation = slot.rotation, scale = slot.scale, mirror = slot.mirror, movement = slot.movement, attachTo = slot.attachTo, contactAnchor = slot.contactAnchor, contactTag = slot.contactTag, contactAllowSelf = slot.contactAllowSelf, contactAllowOthers = slot.contactAllowOthers }).ToList();
             preset.writeDefaults = writeDefaults;
             preset.worldDrop = worldDrop;
             preset.poseFreeze = poseFreeze;
@@ -458,7 +465,7 @@ namespace nxclone
                 BuildVisuals(descriptor, folder, false);
                 var setup = output.AddComponent<NxCloneSetup>();
                 setup.slots = slots.Select(slot => new NxCloneSetupSlot {
-                    source = slot.source, anchor = slot.anchor, offset = slot.offset, rotation = slot.rotation, scale = slot.scale, mirror = slot.mirror,
+                    source = slot.source, anchor = slot.anchor, offset = slot.offset, rotation = slot.rotation, scale = slot.scale, mirror = slot.mirror, movement = slot.movement,
                     attachTo = (NxCloneAttachPoint)(int)slot.attachTo,
                     contactAnchor = slot.contactAnchor, contactTag = slot.contactTag,
                     contactAllowSelf = slot.contactAllowSelf, contactAllowOthers = slot.contactAllowOthers
@@ -530,7 +537,10 @@ namespace nxclone
                 var source = slot.source ? slot.source : avatar;
                 var anchor = slot.anchor ? slot.anchor : slot.attachTo == NxAttachPoint.Root
                     ? output.transform : output.GetComponent<Animator>().GetBoneTransform(AttachBone(slot.attachTo));
-                var driver = NxClonePlacement.Follow(frame, anchor, $"placement-{i + 1}", slot.offset, slot.rotation);
+                bool dance = slot.movement == NxCloneMovement.DancePartner && slot.attachTo == NxAttachPoint.Root && !slot.anchor;
+                var driver = dance
+                    ? NxClonePlacement.Dance(frame, anchor, $"placement-{i + 1}", slot.offset, slot.rotation)
+                    : NxClonePlacement.Follow(frame, anchor, $"placement-{i + 1}", slot.offset, slot.rotation);
                 var clone = BuildVisual(source.gameObject, driver, $"clone-{i + 1}");
                 clone.transform.localScale = Vector3.Scale(slot.scale, new Vector3(slot.mirror ? -1f : 1f, 1f, 1f));
                 built += ConstrainBones(output.transform, source.transform, clone.transform, false, 1f);
@@ -593,7 +603,7 @@ namespace nxclone
             {
                 window.avatar = descriptor;
                 window.slots = setup.slots.Select(slot => new NxCloneSlot {
-                    source = slot.source, anchor = slot.anchor, offset = slot.offset, rotation = slot.rotation, scale = slot.scale, mirror = slot.mirror,
+                    source = slot.source, anchor = slot.anchor, offset = slot.offset, rotation = slot.rotation, scale = slot.scale, mirror = slot.mirror, movement = slot.movement,
                     attachTo = (NxAttachPoint)(int)slot.attachTo, contactAnchor = slot.contactAnchor, contactTag = slot.contactTag,
                     contactAllowSelf = slot.contactAllowSelf, contactAllowOthers = slot.contactAllowOthers
                 }).ToList();
@@ -809,6 +819,13 @@ namespace nxclone
                 string path = PathOf(descriptor.transform, clones[i]);
                 SetCurve(cloneOff, path, typeof(GameObject), "m_IsActive", 0);
                 SetCurve(cloneOn, path, typeof(GameObject), "m_IsActive", 1);
+                var reference = NxClonePlacement.DanceReference(clones[i].parent);
+                if (reference)
+                {
+                    string referencePath = PathOf(descriptor.transform, reference);
+                    SetCurve(cloneOff, referencePath, typeof(VRCParentConstraint), "FreezeToWorld", 0);
+                    SetCurve(cloneOn, referencePath, typeof(VRCParentConstraint), "FreezeToWorld", 1);
+                }
                 AssetDatabase.CreateAsset(cloneOff, $"{folder}/clone-{i + 1}-off.anim");
                 AssetDatabase.CreateAsset(cloneOn, $"{folder}/clone-{i + 1}-on.anim");
                 AddVisibleLayer(fx, $"nxclone {i + 1} visible", parameter, enabled, cloneOff, cloneOn);
@@ -851,7 +868,7 @@ namespace nxclone
             var positionControls = new List<NxClonePositionControls.Result>();
             if (runtimePosition && positionAxes != NxCloneAxes.None) for (int i = 0; i < clones.Count; i++)
             {
-                var placement = clones[i].parent.GetComponent<VRCParentConstraint>().Sources[0].SourceTransform;
+                var placement = NxClonePlacement.ControlAnchor(clones[i].parent);
                 string prefix = $"nxclone_position_{i + 1}";
                 for (int suffix = 2; new[] { "x", "y", "z" }.Any(axis => AvailableParameter(descriptor, prefix + "_" + axis, reserved) != prefix + "_" + axis); suffix++)
                     prefix = $"nxclone_position_{i + 1}_{suffix}";

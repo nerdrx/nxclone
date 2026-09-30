@@ -1,11 +1,12 @@
 # Feature coverage and validation
 
-Version 0.3.3 adds independent axis selection to position and rotation controls. Full feature parity is not established. This matrix distinguishes implementation from runtime proof; there is no claim of complete superiority over another product.
+Version 0.3.4 adds dance-partner root motion. Full feature parity is not established. This matrix distinguishes implementation from runtime proof; there is no claim of complete superiority over another product.
 
 ## Implemented
 
 | Feature | Validation |
 | :--- | :--- |
+| Dance-partner root movement | Native nonzero starting position/yaw, own-left steps, turns without orbit, vertical movement, drop/resume, visibility origin capture/reset, position/yaw dials and post-dial stepping pass. Three extra constraints per clone; no extra parameters. Live VRChat remains unverified. |
 | Root/bone/custom anchors, 1 m forward / 180° new-slot defaults, rotation offsets | Native SDK movement, rotation, hidden-driver and scale tests on Linux; sustained world-drop and resume tests with SDK 3.10.2 and 3.10.5. |
 | In-game XYZ position dials | Native rotated-avatar neutral/endpoints, world-drop hold during dial edits and resume to the latest placement pass. One nested blend tree keeps selected coordinates together and preserves disabled coordinates. |
 | In-game pitch/yaw/roll rotation dials | Native signed quarter-turns, combined local axes, rotated/custom anchors, retained yaw-180 setup orientation, position dial coexistence and world-drop hold/resume pass. Three local carriers avoid competing quaternion animation layers; integrated menu/parameter and Write Defaults checks also pass. Default axis selections are Distance (Z) and Yaw (Y), with 8 synced bits per enabled axis. |

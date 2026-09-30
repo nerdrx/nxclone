@@ -16,6 +16,7 @@ namespace nxclone
         public Vector3 rotation = new Vector3(0f, 180f, 0f);
         public Vector3 scale = Vector3.one;
         public bool mirror;
+        public NxCloneMovement movement = NxCloneMovement.DancePartner;
         public NxAttachPoint attachTo;
         public bool contactAnchor;
         public string contactTag = "HandL";
