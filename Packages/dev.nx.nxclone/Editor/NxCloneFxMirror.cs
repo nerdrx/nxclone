@@ -16,7 +16,8 @@ namespace nxclone
             AnimatorController copiedController,
             Transform avatarRoot,
             IReadOnlyList<Transform> generatedVisuals,
-            string generatedFolder)
+            string generatedFolder,
+            bool silhouetteOnly = false)
         {
             if (!copiedController || !avatarRoot || generatedVisuals == null ||
                 !AssetDatabase.IsValidFolder(generatedFolder)) return 0;
@@ -25,7 +26,7 @@ namespace nxclone
             var trees = new Dictionary<BlendTree, BlendTree>();
             var visitedTrees = new HashSet<BlendTree>();
             foreach (var layer in copiedController.layers)
-                CloneMotions(layer.stateMachine, clips, trees, visitedTrees, avatarRoot, generatedVisuals, generatedFolder);
+                CloneMotions(layer.stateMachine, clips, trees, visitedTrees, avatarRoot, generatedVisuals, generatedFolder, silhouetteOnly);
 
             EditorUtility.SetDirty(copiedController);
             int copied = 0;
@@ -36,30 +37,30 @@ namespace nxclone
         static void CloneMotions(AnimatorStateMachine machine,
             Dictionary<AnimationClip, AnimationClip> clips,
             Dictionary<BlendTree, BlendTree> trees, HashSet<BlendTree> visitedTrees, Transform root,
-            IReadOnlyList<Transform> visuals, string folder)
+            IReadOnlyList<Transform> visuals, string folder, bool silhouetteOnly)
         {
             foreach (var child in machine.states)
-                child.state.motion = CloneMotion(child.state.motion, clips, trees, visitedTrees, root, visuals, folder);
+                child.state.motion = CloneMotion(child.state.motion, clips, trees, visitedTrees, root, visuals, folder, silhouetteOnly);
             foreach (var child in machine.stateMachines)
-                CloneMotions(child.stateMachine, clips, trees, visitedTrees, root, visuals, folder);
+                CloneMotions(child.stateMachine, clips, trees, visitedTrees, root, visuals, folder, silhouetteOnly);
         }
 
         static Motion CloneMotion(Motion motion, Dictionary<AnimationClip, AnimationClip> clips,
             Dictionary<BlendTree, BlendTree> trees, HashSet<BlendTree> visitedTrees,
-            Transform root, IReadOnlyList<Transform> visuals, string folder)
+            Transform root, IReadOnlyList<Transform> visuals, string folder, bool silhouetteOnly)
         {
             if (motion is AnimationClip clip)
             {
                 if (!clips.TryGetValue(clip, out var copy))
                 {
-                    copy = HasRemappableBindings(clip, root, visuals) ? Object.Instantiate(clip) : clip;
+                    copy = HasRemappableBindings(clip, root, visuals, silhouetteOnly) ? Object.Instantiate(clip) : clip;
                     clips.Add(clip, copy);
                     if (copy != clip)
                     {
                         copy.name = clip.name + " (nxclone FX)";
                         AssetDatabase.CreateAsset(copy, AssetDatabase.GenerateUniqueAssetPath(
                             $"{folder}/{Sanitize(clip.name)}-fx.anim"));
-                        CopyBindings(clip, copy, root, visuals);
+                        CopyBindings(clip, copy, root, visuals, silhouetteOnly);
                     }
                 }
                 return copy;
@@ -69,7 +70,8 @@ namespace nxclone
             {
                 if (!trees.TryGetValue(tree, out var copy))
                 {
-                    copy = Object.Instantiate(tree);
+                    copy = new BlendTree();
+                    EditorUtility.CopySerialized(tree, copy);
                     copy.name = tree.name + " (nxclone FX)";
                     AssetDatabase.CreateAsset(copy, AssetDatabase.GenerateUniqueAssetPath(
                         $"{folder}/{Sanitize(tree.name)}-fx-blendtree.asset"));
@@ -80,7 +82,7 @@ namespace nxclone
                 var children = copy.children;
                 for (int i = 0; i < children.Length; i++)
                 {
-                    children[i].motion = CloneMotion(children[i].motion, clips, trees, visitedTrees, root, visuals, folder);
+                    children[i].motion = CloneMotion(children[i].motion, clips, trees, visitedTrees, root, visuals, folder, silhouetteOnly);
                 }
                 copy.children = children;
                 EditorUtility.SetDirty(copy);
@@ -90,11 +92,11 @@ namespace nxclone
         }
 
         static void CopyBindings(AnimationClip source, AnimationClip destination,
-            Transform root, IReadOnlyList<Transform> visuals)
+            Transform root, IReadOnlyList<Transform> visuals, bool silhouetteOnly)
         {
             foreach (var binding in AnimationUtility.GetCurveBindings(source))
             {
-                if (!Eligible(binding)) continue;
+                if (!Eligible(binding, silhouetteOnly)) continue;
                 var sourceTarget = Resolve(root, binding.path);
                 if (!sourceTarget || !HasTargetComponent(sourceTarget, binding)) continue;
                 var curve = AnimationUtility.GetEditorCurve(source, binding);
@@ -113,7 +115,7 @@ namespace nxclone
 
             foreach (var binding in AnimationUtility.GetObjectReferenceCurveBindings(source))
             {
-                if (!Eligible(binding)) continue;
+                if (!Eligible(binding, silhouetteOnly)) continue;
                 var sourceTarget = Resolve(root, binding.path);
                 if (!sourceTarget || !HasTargetComponent(sourceTarget, binding)) continue;
                 var curve = AnimationUtility.GetObjectReferenceCurve(source, binding);
@@ -129,18 +131,18 @@ namespace nxclone
             }
         }
 
-        static bool HasRemappableBindings(AnimationClip clip, Transform root, IReadOnlyList<Transform> visuals)
+        static bool HasRemappableBindings(AnimationClip clip, Transform root, IReadOnlyList<Transform> visuals, bool silhouetteOnly)
         {
             foreach (var binding in AnimationUtility.GetCurveBindings(clip))
-                if (HasDestination(binding, root, visuals)) return true;
+                if (HasDestination(binding, root, visuals, silhouetteOnly)) return true;
             foreach (var binding in AnimationUtility.GetObjectReferenceCurveBindings(clip))
-                if (HasDestination(binding, root, visuals)) return true;
+                if (HasDestination(binding, root, visuals, silhouetteOnly)) return true;
             return false;
         }
 
-        static bool HasDestination(EditorCurveBinding binding, Transform root, IReadOnlyList<Transform> visuals)
+        static bool HasDestination(EditorCurveBinding binding, Transform root, IReadOnlyList<Transform> visuals, bool silhouetteOnly)
         {
-            if (!Eligible(binding)) return false;
+            if (!Eligible(binding, silhouetteOnly)) return false;
             var source = Resolve(root, binding.path);
             if (!source || !HasTargetComponent(source, binding)) return false;
             foreach (var visual in visuals)
@@ -152,8 +154,16 @@ namespace nxclone
             return false;
         }
 
-        static bool Eligible(EditorCurveBinding binding)
+        static bool Eligible(EditorCurveBinding binding, bool silhouetteOnly)
         {
+            if (silhouetteOnly)
+            {
+                if (binding.type == typeof(GameObject)) return binding.propertyName == "m_IsActive";
+                if (binding.type == typeof(SkinnedMeshRenderer) || binding.type == typeof(MeshRenderer))
+                    return binding.propertyName == "m_Enabled" ||
+                           (binding.type == typeof(SkinnedMeshRenderer) && binding.propertyName.StartsWith("blendShape."));
+                return false;
+            }
             if (binding.type == typeof(Transform) || binding.type == typeof(RectTransform)) return false;
             if (binding.type == typeof(GameObject)) return binding.propertyName == "m_IsActive";
             return binding.type == typeof(SkinnedMeshRenderer) || binding.type == typeof(MeshRenderer);
@@ -175,7 +185,7 @@ namespace nxclone
             foreach (char c in value)
                 result.Append(char.IsLetterOrDigit(c) || c == '-' || c == '_' ? c : '_');
             var safe = result.ToString().Trim('_', '.');
-            return safe.Length > 0 ? safe : "animation";
+            return safe.Length > 0 ? safe.Substring(0, System.Math.Min(64, safe.Length)) : "animation";
         }
     }
 }

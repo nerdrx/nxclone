@@ -1,0 +1,8 @@
+{
+  "name": "nxclone.Runtime",
+  "rootNamespace": "nxclone",
+  "references": [
+    "VRC.SDK3A", "VRC.SDKBase"
+  ],
+  "autoReferenced": true
+}

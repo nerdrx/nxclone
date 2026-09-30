@@ -96,7 +96,7 @@ namespace nxclone
             EditorGUILayout.LabelField("Avatar check", EditorStyles.boldLabel);
             foreach (var issue in issues) EditorGUILayout.HelpBox(issue, MessageType.Error);
             if (issues.Count == 0 && avatar)
-                EditorGUILayout.HelpBox("Ready. Missing FX and expression assets will be created on the scene copy.", MessageType.Info);
+                EditorGUILayout.HelpBox("Ready. Hidden preview now; final clones and menu controls assemble during upload after avatar build tools.", MessageType.Info);
             using (new EditorGUI.DisabledScope(issues.Count != 0))
                 if (GUILayout.Button("Generate scene copy")) Generate();
             EditorGUILayout.EndScrollView();
@@ -189,11 +189,14 @@ namespace nxclone
             {
                 if (root.expressionsMenu && root.expressionsMenu.controls != null && root.expressionsMenu.controls.Count >= 8)
                     issues.Add("Expressions Menu has 8 controls. Free one slot or move controls into a submenu.");
-                int needed = 1 + (drop ? slots.Count : 0) + (freeze ? slots.Count : 0) + (scale ? 8 : 0);
+                int needed = 1 + (ghosts ? 1 : 0) + (drop ? slots.Count : 0) + (freeze ? slots.Count : 0) + (scale ? 8 : 0);
                 if (root.expressionParameters && root.expressionParameters.CalcTotalCost() + needed > VRCExpressionParameters.MAX_PARAMETER_COST)
                     issues.Add($"Expression Parameters need {needed} free bits for nxclone controls.");
+                int submenuControls = 1 + (ghosts ? 1 : 0) + (drop ? slots.Count : 0) + (scale ? 1 : 0);
+                if ((drop || scale || ghosts) && submenuControls > 8)
+                    issues.Add($"nxclone controls need {submenuControls} submenu slots. Reduce clone controls or disable afterimages.");
             }
-            if (ghosts && !Shader.Find("nxclone/solid translucent"))
+            if (ghosts && (!Shader.Find("nxclone/solid translucent") || !Shader.Find("nxclone/silhouette mask")))
                 issues.Add("Afterimage shader has not imported. Reimport the nxclone package.");
             return issues;
         }
@@ -225,74 +228,44 @@ namespace nxclone
             if (issues.Count > 0) { EditorUtility.DisplayDialog("nxclone check", string.Join("\n", issues), "OK"); return; }
             GameObject output = null;
             string folder = null;
+            var originalAvatar = avatar;
+            var originalSources = slots.Select(slot => slot.source).ToArray();
             try
             {
                 EnsureFolder(OutputRoot);
                 folder = AssetDatabase.GenerateUniqueAssetPath($"{OutputRoot}/{SafeName(avatar.name)}");
                 AssetDatabase.CreateFolder(OutputRoot, folder.Substring(OutputRoot.Length + 1));
                 output = Instantiate(avatar.gameObject, avatar.transform.position + Vector3.right * 2, avatar.transform.rotation);
-                output.name = avatar.name + "_nxclone";
+                output.name = avatar.name + "_nxclone_" + Guid.NewGuid().ToString("N").Substring(0, 8);
                 // A generated avatar must never reuse the source avatar's upload blueprint ID.
                 foreach (var component in output.GetComponents<Component>())
                     if (component && component.GetType().Name == "PipelineManager") DestroyImmediate(component);
                 var descriptor = output.GetComponent<VRCAvatarDescriptor>();
-                var group = new GameObject("nxclone");
-                group.transform.SetParent(output.transform, false);
-                int built = 0;
-                var clones = new List<Transform>();
+                avatar = descriptor;
                 for (int i = 0; i < slots.Count; i++)
-                {
-                    var source = slots[i].source ? slots[i].source : avatar;
-                    var clone = BuildVisual(source.gameObject, group.transform, $"clone-{i + 1}");
-                    clone.transform.localPosition = slots[i].offset;
-                    clone.transform.localScale = Vector3.Scale(slots[i].scale, new Vector3(slots[i].mirror ? -1f : 1f, 1f, 1f));
-                    built += ConstrainBones(output.transform, source.transform, clone.transform, false, 1f);
-                    if (worldDrop || slots[i].attachTo != NxAttachPoint.Root)
-                    {
-                        Transform anchor = output.transform;
-                        if (slots[i].attachTo != NxAttachPoint.Root)
-                        {
-                            var bone = output.GetComponent<Animator>().GetBoneTransform(AttachBone(slots[i].attachTo));
-                            var target = new GameObject($"nxclone anchor {i + 1}");
-                            target.transform.SetParent(bone, false);
-                            target.transform.localPosition = slots[i].offset;
-                            anchor = target.transform;
-                            clone.transform.position = anchor.position;
-                            clone.transform.rotation = anchor.rotation;
-                        }
-                        var placement = clone.AddComponent<VRCParentConstraint>();
-                        placement.Sources.Add(new VRCConstraintSource(anchor, 1f));
-                        placement.ActivateConstraint();
-                        placement.ApplyConfigurationChanges();
-                    }
-                    clones.Add(clone.transform);
-                }
-                if (afterimages)
-                {
-                    for (int i = 0; i < afterimageCount; i++)
-                    {
-                        var ghost = BuildVisual(avatar.gameObject, group.transform, $"afterimage-{i + 1}");
-                        var color = afterimageColor;
-                        color.a /= i + 1;
-                        var material = new Material(Shader.Find("nxclone/solid translucent"));
-                        material.color = color;
-                        AssetDatabase.CreateAsset(material, $"{folder}/afterimage-{i + 1}.mat");
-                        foreach (var renderer in ghost.GetComponentsInChildren<Renderer>(true))
-                            renderer.sharedMaterials = Enumerable.Repeat(material, renderer.sharedMaterials.Length).ToArray();
-                        built += ConstrainBones(output.transform, avatar.transform, ghost.transform, true, damping / (i + 1));
-                        var position = ghost.AddComponent<VRCPositionConstraint>();
-                        position.Sources.Add(new VRCConstraintSource(ghost.transform, 1f));
-                        position.Sources.Add(new VRCConstraintSource(output.transform, damping / (i + 1)));
-                        position.ActivateConstraint();
-                        position.ApplyConfigurationChanges();
-                    }
-                }
-                InstallToggle(descriptor, folder, group.transform, clones);
+                    if (!originalSources[i] || originalSources[i] == originalAvatar) slots[i].source = null;
+                BuildVisuals(descriptor, folder, false);
+                var setup = output.AddComponent<NxCloneSetup>();
+                setup.slots = slots.Select(slot => new NxCloneSetupSlot {
+                    source = slot.source, offset = slot.offset, scale = slot.scale, mirror = slot.mirror,
+                    attachTo = (NxCloneAttachPoint)(int)slot.attachTo
+                }).ToList();
+                setup.worldDrop = worldDrop;
+                setup.poseFreeze = poseFreeze;
+                setup.copyVisemes = copyVisemes;
+                setup.copyFxAnimations = copyFxAnimations;
+                setup.runtimeScale = runtimeScale;
+                setup.afterimages = afterimages;
+                setup.afterimageCount = afterimageCount;
+                setup.damping = damping;
+                setup.afterimageColor = afterimageColor;
+                setup.generatedFolder = folder;
+                output.name = originalAvatar.name + "_nxclone";
                 AssetDatabase.SaveAssets();
                 Undo.RegisterCreatedObjectUndo(output, "Generate nxclone avatar");
                 Selection.activeGameObject = output;
                 EditorGUIUtility.PingObject(output);
-                Debug.Log($"nxclone: generated {output.name}, {built} bone constraints, assets in {folder}", output);
+                Debug.Log($"nxclone: generated hidden preview {output.name}; final clones and controls assemble during upload after avatar build tools.", output);
             }
             catch (Exception ex)
             {
@@ -301,11 +274,156 @@ namespace nxclone
                 Debug.LogException(ex);
                 EditorUtility.DisplayDialog("nxclone failed", ex.Message + "\nSee Console for details. No generated avatar kept.", "OK");
             }
+            finally
+            {
+                avatar = originalAvatar;
+                for (int i = 0; i < slots.Count; i++) slots[i].source = originalSources[i];
+            }
+        }
+
+        void BuildVisuals(VRCAvatarDescriptor descriptor, string folder, bool installControls)
+        {
+            var output = descriptor.gameObject;
+            var group = new GameObject("nxclone");
+            group.transform.SetParent(output.transform, false);
+            int built = 0;
+            var clones = new List<Transform>();
+            for (int i = 0; i < slots.Count; i++)
+            {
+                var source = slots[i].source ? slots[i].source : avatar;
+                var clone = BuildVisual(source.gameObject, group.transform, $"clone-{i + 1}");
+                clone.transform.localPosition = slots[i].offset;
+                clone.transform.localScale = Vector3.Scale(slots[i].scale, new Vector3(slots[i].mirror ? -1f : 1f, 1f, 1f));
+                built += ConstrainBones(output.transform, source.transform, clone.transform, false, 1f);
+                if (worldDrop || slots[i].attachTo != NxAttachPoint.Root)
+                {
+                    Transform anchor = output.transform;
+                    if (slots[i].attachTo != NxAttachPoint.Root)
+                    {
+                        var bone = output.GetComponent<Animator>().GetBoneTransform(AttachBone(slots[i].attachTo));
+                        var target = new GameObject($"nxclone anchor {i + 1}");
+                        target.transform.SetParent(bone, false);
+                        target.transform.localPosition = slots[i].offset;
+                        anchor = target.transform;
+                        clone.transform.position = anchor.position;
+                        clone.transform.rotation = anchor.rotation;
+                    }
+                    var placement = clone.AddComponent<VRCParentConstraint>();
+                    placement.Sources.Add(new VRCConstraintSource(anchor, 1f));
+                    placement.ActivateConstraint();
+                    placement.ApplyConfigurationChanges();
+                }
+                clone.SetActive(false);
+                clones.Add(clone.transform);
+            }
+            if (afterimages)
+            {
+                var ghosts = new List<Transform>();
+                for (int i = 0; i < afterimageCount; i++)
+                {
+                    var ghost = BuildVisual(avatar.gameObject, group.transform, $"afterimage-{i + 1}");
+                    var color = afterimageColor;
+                    var material = new Material(Shader.Find("nxclone/solid translucent"));
+                    material.color = color;
+                    AssetDatabase.CreateAsset(material, $"{folder}/afterimage-{i + 1}.mat");
+                    foreach (var renderer in ghost.GetComponentsInChildren<Renderer>(true))
+                        renderer.sharedMaterials = Enumerable.Repeat(material, renderer.sharedMaterials.Length).ToArray();
+                    built += ConstrainBones(output.transform, avatar.transform, ghost.transform, true, damping / (i + 1));
+                    var position = ghost.AddComponent<VRCPositionConstraint>();
+                    position.Sources.Add(new VRCConstraintSource(ghost.transform, 1f));
+                    position.Sources.Add(new VRCConstraintSource(output.transform, damping / (i + 1)));
+                    position.ActivateConstraint();
+                    position.ApplyConfigurationChanges();
+                    ghost.SetActive(false);
+                    ghosts.Add(ghost.transform);
+                }
+                if (installControls)
+                {
+                    var maskMaterial = new Material(Shader.Find("nxclone/silhouette mask"));
+                    AssetDatabase.CreateAsset(maskMaterial, $"{folder}/main-silhouette-mask.mat");
+                    var mask = NxCloneAfterimages.CreateMainSilhouetteMask(descriptor.transform, descriptor.transform, maskMaterial);
+                    mask.gameObject.SetActive(false);
+                    ghosts.Add(mask);
+                    InstallToggle(descriptor, folder, group.transform, clones, ghosts);
+                }
+            }
+            else if (installControls) InstallToggle(descriptor, folder, group.transform, clones, new List<Transform>());
+            if (installControls) Debug.Log($"nxclone: {built} bone constraints added; afterimages include an additional primary silhouette mask.", descriptor);
+        }
+
+        public static void RemovePreview(Transform root)
+        {
+            var preview = root.Find("nxclone");
+            if (preview) DestroyImmediate(preview.gameObject);
+            var mask = root.Find("__nxclone main silhouette mask");
+            if (mask) DestroyImmediate(mask.gameObject);
+            foreach (var transform in root.GetComponentsInChildren<Transform>(true))
+                if (transform && transform.name.StartsWith("nxclone anchor ", StringComparison.Ordinal)) DestroyImmediate(transform.gameObject);
+        }
+
+        public static void BuildForUpload(NxCloneSetup setup)
+        {
+            var descriptor = setup.GetComponent<VRCAvatarDescriptor>();
+            if (!descriptor) throw new InvalidOperationException("nxclone setup has no avatar descriptor.");
+            var window = CreateInstance<NxCloneWindow>();
+            var temporarySources = new List<GameObject>();
+            try
+            {
+                window.avatar = descriptor;
+                window.slots = setup.slots.Select(slot => new NxCloneSlot {
+                    source = slot.source, offset = slot.offset, scale = slot.scale, mirror = slot.mirror,
+                    attachTo = (NxAttachPoint)(int)slot.attachTo
+                }).ToList();
+                window.worldDrop = setup.worldDrop;
+                window.poseFreeze = setup.poseFreeze;
+                window.copyVisemes = setup.copyVisemes;
+                window.copyFxAnimations = setup.copyFxAnimations;
+                window.runtimeScale = setup.runtimeScale;
+                window.afterimages = setup.afterimages;
+                window.afterimageCount = setup.afterimageCount;
+                window.damping = setup.damping;
+                window.afterimageColor = setup.afterimageColor;
+                RemovePreview(descriptor.transform);
+                EnsureFolder(OutputRoot);
+                string folder = AssetDatabase.GenerateUniqueAssetPath($"{OutputRoot}/{SafeName(descriptor.name)}-upload");
+                AssetDatabase.CreateFolder(OutputRoot, folder.Substring(OutputRoot.Length + 1));
+                foreach (var slot in window.slots)
+                {
+                    if (!slot.source || slot.source == descriptor) { slot.source = null; continue; }
+                    var source = Instantiate(slot.source.gameObject);
+                    source.name += "_nxclone_source_" + Guid.NewGuid().ToString("N").Substring(0, 8);
+                    temporarySources.Add(source);
+                    NxCloneBuildSource.Bake(source, folder);
+                    slot.source = source.GetComponent<VRCAvatarDescriptor>();
+                }
+                var issues = Preflight(descriptor, window.slots, window.afterimages, window.worldDrop, window.poseFreeze, window.runtimeScale);
+                if (issues.Count != 0) throw new InvalidOperationException(string.Join("\n", issues));
+                window.BuildVisuals(descriptor, folder, true);
+                AssetDatabase.SaveAssets();
+                Debug.Log("nxclone: assembled linked visuals and controls after avatar preprocessing.", descriptor);
+            }
+            finally
+            {
+                foreach (var source in temporarySources) if (source) DestroyImmediate(source);
+                DestroyImmediate(window);
+            }
         }
 
         static GameObject BuildVisual(GameObject source, Transform parent, string name)
         {
-            var visual = Instantiate(source);
+            GameObject visual;
+            var generatedGroup = source.transform.Find("nxclone");
+            int sibling = generatedGroup ? generatedGroup.GetSiblingIndex() : 0;
+            if (generatedGroup) generatedGroup.SetParent(null, true);
+            try { visual = Instantiate(source); }
+            finally
+            {
+                if (generatedGroup)
+                {
+                    generatedGroup.SetParent(source.transform, true);
+                    generatedGroup.SetSiblingIndex(sibling);
+                }
+            }
             visual.name = name;
             visual.transform.SetParent(parent, false);
             visual.transform.localPosition = Vector3.zero;
@@ -340,13 +458,15 @@ namespace nxclone
             return count;
         }
 
-        void InstallToggle(VRCAvatarDescriptor descriptor, string folder, Transform group, List<Transform> clones)
+        void InstallToggle(VRCAvatarDescriptor descriptor, string folder, Transform group, List<Transform> clones, List<Transform> ghosts)
         {
             var oldFx = Fx(descriptor);
             string fxPath = $"{folder}/fx.controller";
             var reserved = new HashSet<string>();
             string parameter = AvailableParameter(descriptor, Parameter, reserved);
             reserved.Add(parameter);
+            string ghostParameter = ghosts.Count == 0 ? null : AvailableParameter(descriptor, "nxclone_afterimages", reserved);
+            if (ghostParameter != null) reserved.Add(ghostParameter);
             AnimatorController fx;
             var sourceFx = oldFx ? oldFx : AssetDatabase.LoadAssetAtPath<AnimatorController>(DefaultFxPath);
             if (!sourceFx || !AssetDatabase.CopyAsset(AssetDatabase.GetAssetPath(sourceFx), fxPath))
@@ -357,18 +477,35 @@ namespace nxclone
                 var sameRootClones = clones.Where((clone, i) => !slots[i].source || slots[i].source == avatar).ToArray();
                 NxCloneFxMirror.MirrorFxCurves(fx, descriptor.transform, sameRootClones, folder);
             }
+            if (ghosts.Count != 0)
+                NxCloneFxMirror.MirrorFxCurves(fx, descriptor.transform, ghosts, folder, silhouetteOnly: true);
             fx.AddParameter(parameter, AnimatorControllerParameterType.Bool);
             var off = new AnimationClip { name = "nxclone off" };
             var on = new AnimationClip { name = "nxclone on" };
-            foreach (var renderer in group.GetComponentsInChildren<Renderer>(true))
+            foreach (var clone in clones)
             {
-                string path = PathOf(descriptor.transform, renderer.transform);
-                SetCurve(off, path, renderer.GetType(), "m_Enabled", 0);
-                SetCurve(on, path, renderer.GetType(), "m_Enabled", 1);
+                string path = PathOf(descriptor.transform, clone);
+                SetCurve(off, path, typeof(GameObject), "m_IsActive", 0);
+                SetCurve(on, path, typeof(GameObject), "m_IsActive", 1);
             }
             AssetDatabase.CreateAsset(off, $"{folder}/off.anim");
             AssetDatabase.CreateAsset(on, $"{folder}/on.anim");
             AddBoolLayer(fx, "nxclone visible", parameter, off, on);
+            if (ghostParameter != null)
+            {
+                fx.AddParameter(ghostParameter, AnimatorControllerParameterType.Bool);
+                var ghostOff = new AnimationClip { name = "nxclone afterimages off" };
+                var ghostOn = new AnimationClip { name = "nxclone afterimages on" };
+                foreach (var ghost in ghosts)
+                {
+                    string path = PathOf(descriptor.transform, ghost);
+                    SetCurve(ghostOff, path, typeof(GameObject), "m_IsActive", 0);
+                    SetCurve(ghostOn, path, typeof(GameObject), "m_IsActive", 1);
+                }
+                AssetDatabase.CreateAsset(ghostOff, $"{folder}/afterimages-off.anim");
+                AssetDatabase.CreateAsset(ghostOn, $"{folder}/afterimages-on.anim");
+                AddBoolLayer(fx, "nxclone afterimages", ghostParameter, ghostOff, ghostOn);
+            }
             var dropParameters = new List<string>();
             var freezeParameters = new List<string>();
             if (worldDrop) for (int i = 0; i < clones.Count; i++)
@@ -420,7 +557,10 @@ namespace nxclone
                 if (!NxCloneVisemes.AddCloneVisemes(fx, source, descriptor.transform, clones[i], folder, $"nxclone {i + 1} visemes"))
                     Debug.LogWarning($"nxclone: clone {i + 1} has no compatible blendshape viseme mapping; viseme copying skipped.", descriptor);
             }
+            if (copyVisemes) for (int i = 0; i < ghosts.Count; i++)
+                NxCloneVisemes.AddCloneVisemes(fx, descriptor, descriptor.transform, ghosts[i], folder, $"nxclone afterimage {i + 1} visemes");
             var layers = descriptor.baseAnimationLayers ?? Array.Empty<VRCAvatarDescriptor.CustomAnimLayer>();
+            descriptor.customizeAnimationLayers = true;
             if (!layers.Any(item => item.type == VRCAvatarDescriptor.AnimLayerType.FX))
                 layers = layers.Concat(new[] { new VRCAvatarDescriptor.CustomAnimLayer { type = VRCAvatarDescriptor.AnimLayerType.FX } }).ToArray();
             for (int i = 0; i < layers.Length; i++)
@@ -436,8 +576,12 @@ namespace nxclone
                 : ScriptableObject.CreateInstance<VRCExpressionParameters>();
             parameters.name = "nxclone parameters";
             var addedParameters = new List<VRCExpressionParameters.Parameter> { new VRCExpressionParameters.Parameter {
-                name = parameter, valueType = VRCExpressionParameters.ValueType.Bool, defaultValue = 0, saved = true, networkSynced = true
+                name = parameter, valueType = VRCExpressionParameters.ValueType.Bool, defaultValue = 0, saved = false, networkSynced = true
             } };
+            if (ghostParameter != null)
+                addedParameters.Add(new VRCExpressionParameters.Parameter {
+                    name = ghostParameter, valueType = VRCExpressionParameters.ValueType.Bool, defaultValue = 0, saved = false, networkSynced = true
+                });
             foreach (var dropParameter in dropParameters)
                 addedParameters.Add(new VRCExpressionParameters.Parameter {
                     name = dropParameter, valueType = VRCExpressionParameters.ValueType.Bool, defaultValue = 0, saved = false, networkSynced = true
@@ -460,9 +604,9 @@ namespace nxclone
             if (menu.controls == null) menu.controls = new List<VRCExpressionsMenu.Control>();
             var toggle = new VRCExpressionsMenu.Control {
                 name = "nxclone", type = VRCExpressionsMenu.Control.ControlType.Toggle,
-                parameter = new VRCExpressionsMenu.Control.Parameter { name = parameter }
+                parameter = new VRCExpressionsMenu.Control.Parameter { name = parameter }, value = 1
             };
-            if (dropParameters.Count == 0 && scaleParameter == null) menu.controls.Add(toggle);
+            if (dropParameters.Count == 0 && scaleParameter == null && ghostParameter == null) menu.controls.Add(toggle);
             else
             {
                 var subMenu = ScriptableObject.CreateInstance<VRCExpressionsMenu>();
@@ -473,7 +617,7 @@ namespace nxclone
                 {
                     var dropControl = new VRCExpressionsMenu.Control {
                         name = $"Clone {i + 1} world drop", type = VRCExpressionsMenu.Control.ControlType.Toggle,
-                        parameter = new VRCExpressionsMenu.Control.Parameter { name = dropParameters[i] }
+                        parameter = new VRCExpressionsMenu.Control.Parameter { name = dropParameters[i] }, value = 1
                     };
                     if (poseFreeze)
                     {
@@ -483,7 +627,7 @@ namespace nxclone
                         cloneMenu.controls.Add(dropControl);
                         cloneMenu.controls.Add(new VRCExpressionsMenu.Control {
                             name = "Freeze pose", type = VRCExpressionsMenu.Control.ControlType.Toggle,
-                            parameter = new VRCExpressionsMenu.Control.Parameter { name = freezeParameters[i] }
+                            parameter = new VRCExpressionsMenu.Control.Parameter { name = freezeParameters[i] }, value = 1
                         });
                         AssetDatabase.CreateAsset(cloneMenu, $"{folder}/clone-{i + 1}-controls.asset");
                         subMenu.controls.Add(new VRCExpressionsMenu.Control {
@@ -496,6 +640,11 @@ namespace nxclone
                     subMenu.controls.Add(new VRCExpressionsMenu.Control {
                         name = "Clone scale", type = VRCExpressionsMenu.Control.ControlType.RadialPuppet,
                         subParameters = new[] { new VRCExpressionsMenu.Control.Parameter { name = scaleParameter } }
+                    });
+                if (ghostParameter != null)
+                    subMenu.controls.Add(new VRCExpressionsMenu.Control {
+                        name = "Afterimages", type = VRCExpressionsMenu.Control.ControlType.Toggle,
+                        parameter = new VRCExpressionsMenu.Control.Parameter { name = ghostParameter }, value = 1
                     });
                 AssetDatabase.CreateAsset(subMenu, $"{folder}/controls.asset");
                 menu.controls.Add(new VRCExpressionsMenu.Control {
@@ -598,7 +747,7 @@ namespace nxclone
             string stem = safe.Split('.')[0];
             if (new[] { "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9" }
                 .Contains(stem, StringComparer.OrdinalIgnoreCase)) safe = "_" + safe;
-            return safe;
+            return safe.Substring(0, Math.Min(48, safe.Length)).TrimEnd(' ', '.');
         }
 
         static void EnsureFolder(string path)

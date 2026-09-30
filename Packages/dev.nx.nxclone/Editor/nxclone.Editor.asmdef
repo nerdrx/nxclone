@@ -1,7 +1,7 @@
 {
   "name": "nxclone.Editor",
   "rootNamespace": "nxclone",
-  "references": ["VRC.SDK3A", "VRC.SDKBase"],
+  "references": ["VRC.SDK3A", "VRC.SDKBase", "VRC.SDKBase.Editor", "VRC.SDKBase.Editor.BuildPipeline", "nxclone.Runtime"],
   "includePlatforms": ["Editor"],
   "autoReferenced": true
 }
