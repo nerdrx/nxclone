@@ -33,7 +33,6 @@ namespace nxclone
         {
             scroll = EditorGUILayout.BeginScrollView(scroll);
             EditorGUILayout.LabelField("nxclone", EditorStyles.boldLabel);
-            EditorGUILayout.HelpBox("Builds a new scene avatar and copies FX/menu assets. No login or network request.", MessageType.Info);
             avatar = (VRCAvatarDescriptor)EditorGUILayout.ObjectField("Root avatar", avatar, typeof(VRCAvatarDescriptor), true);
             cloneSource = (VRCAvatarDescriptor)EditorGUILayout.ObjectField("Clone source (optional)", cloneSource, typeof(VRCAvatarDescriptor), true);
             cloneCount = EditorGUILayout.IntSlider("Clones", cloneCount, 1, 4);
@@ -60,7 +59,8 @@ namespace nxclone
             var issues = Preflight(avatar, cloneSource ? cloneSource : avatar, afterimages);
             EditorGUILayout.LabelField("Avatar check", EditorStyles.boldLabel);
             foreach (var issue in issues) EditorGUILayout.HelpBox(issue, MessageType.Error);
-            if (issues.Count == 0) EditorGUILayout.HelpBox("Ready. Originals are left untouched.", MessageType.Info);
+            if (issues.Count == 0 && avatar)
+                EditorGUILayout.HelpBox("Ready. Missing FX and expression assets will be created on the scene copy.", MessageType.Info);
             using (new EditorGUI.DisabledScope(issues.Count != 0))
                 if (GUILayout.Button("Generate scene copy")) Generate();
             EditorGUILayout.EndScrollView();
@@ -90,16 +90,15 @@ namespace nxclone
             if (external > 0) issues.Add($"{external} clone bones reference objects outside the clone source. Rebind the SkinnedMeshRenderer bones.");
             int missing = sourceBones.Count(t => !rootPaths.Contains(PathOf(source.transform, t)));
             if (missing > 0) issues.Add($"{missing} clone bone paths are absent on root. Use the same rig/hierarchy or rename bones to match.");
-            var fx = Fx(root);
-            if (!fx) issues.Add("Root needs a custom FX Animator Controller asset. Assign one in Avatar Descriptor > Playable Layers.");
-            else if (fx.parameters.Any(p => p.name == Parameter)) issues.Add($"FX already has parameter '{Parameter}'. Rename/remove it before generation.");
-            if (!root.customExpressions || !root.expressionsMenu || !root.expressionParameters)
-                issues.Add("Enable Custom Expressions and assign both Expressions Menu and Expression Parameters assets.");
-            else
+            if (root.baseAnimationLayers != null)
+                foreach (var layer in root.baseAnimationLayers)
+                    if (layer.type == VRCAvatarDescriptor.AnimLayerType.FX && !layer.isDefault && layer.animatorController && !(layer.animatorController is AnimatorController))
+                        issues.Add("FX layer uses an Animator Override Controller. Assign a regular Animator Controller before generating so its animations are preserved.");
+            if (root.customExpressions)
             {
-                if (root.expressionsMenu.controls.Count >= 8) issues.Add("Expressions Menu has 8 controls. Free one slot or move controls into a submenu.");
-                if (root.expressionParameters.parameters.Any(p => p.name == Parameter)) issues.Add($"Expression Parameters already contains '{Parameter}'. Rename/remove it.");
-                if (root.expressionParameters.CalcTotalCost() + 1 > VRCExpressionParameters.MAX_PARAMETER_COST)
+                if (root.expressionsMenu && root.expressionsMenu.controls != null && root.expressionsMenu.controls.Count >= 8)
+                    issues.Add("Expressions Menu has 8 controls. Free one slot or move controls into a submenu.");
+                if (root.expressionParameters && root.expressionParameters.CalcTotalCost() + 1 > VRCExpressionParameters.MAX_PARAMETER_COST)
                     issues.Add("Expression Parameters need one free bit for the nxclone toggle.");
             }
             if (ghosts && !Shader.Find("nxclone/solid translucent"))
@@ -111,9 +110,21 @@ namespace nxclone
         {
             if (!root || root.baseAnimationLayers == null) return null;
             foreach (var layer in root.baseAnimationLayers)
-                if (layer.type == VRCAvatarDescriptor.AnimLayerType.FX)
+                if (layer.type == VRCAvatarDescriptor.AnimLayerType.FX && !layer.isDefault)
                     return layer.animatorController as AnimatorController;
             return null;
+        }
+
+        static string AvailableParameter(VRCAvatarDescriptor root)
+        {
+            var used = new HashSet<string>();
+            var fx = Fx(root);
+            if (fx) foreach (var p in fx.parameters) used.Add(p.name);
+            if (root.customExpressions && root.expressionParameters && root.expressionParameters.parameters != null)
+                foreach (var p in root.expressionParameters.parameters) used.Add(p.name);
+            if (!used.Contains(Parameter)) return Parameter;
+            for (int i = 2; ; i++)
+                if (!used.Contains(Parameter + "_" + i)) return Parameter + "_" + i;
         }
 
         void Generate()
@@ -220,10 +231,16 @@ namespace nxclone
         {
             var oldFx = Fx(descriptor);
             string fxPath = $"{folder}/fx.controller";
-            if (!AssetDatabase.CopyAsset(AssetDatabase.GetAssetPath(oldFx), fxPath))
-                throw new InvalidOperationException("Could not copy FX controller to generated folder.");
-            var fx = AssetDatabase.LoadAssetAtPath<AnimatorController>(fxPath);
-            fx.AddParameter(Parameter, AnimatorControllerParameterType.Bool);
+            string parameter = AvailableParameter(descriptor);
+            AnimatorController fx;
+            if (oldFx)
+            {
+                if (!AssetDatabase.CopyAsset(AssetDatabase.GetAssetPath(oldFx), fxPath))
+                    throw new InvalidOperationException("Could not copy FX controller to generated folder.");
+                fx = AssetDatabase.LoadAssetAtPath<AnimatorController>(fxPath);
+            }
+            else fx = AnimatorController.CreateAnimatorControllerAtPath(fxPath);
+            fx.AddParameter(parameter, AnimatorControllerParameterType.Bool);
             var off = new AnimationClip { name = "nxclone off" };
             var on = new AnimationClip { name = "nxclone on" };
             string path = PathOf(descriptor.transform, group);
@@ -243,13 +260,15 @@ namespace nxclone
             var toOn = offState.AddTransition(onState);
             toOn.hasExitTime = false;
             toOn.duration = 0;
-            toOn.AddCondition(AnimatorConditionMode.If, 0, Parameter);
+            toOn.AddCondition(AnimatorConditionMode.If, 0, parameter);
             var toOff = onState.AddTransition(offState);
             toOff.hasExitTime = false;
             toOff.duration = 0;
-            toOff.AddCondition(AnimatorConditionMode.IfNot, 0, Parameter);
+            toOff.AddCondition(AnimatorConditionMode.IfNot, 0, parameter);
             fx.AddLayer(layer);
-            var layers = descriptor.baseAnimationLayers;
+            var layers = descriptor.baseAnimationLayers ?? Array.Empty<VRCAvatarDescriptor.CustomAnimLayer>();
+            if (!layers.Any(item => item.type == VRCAvatarDescriptor.AnimLayerType.FX))
+                layers = layers.Concat(new[] { new VRCAvatarDescriptor.CustomAnimLayer { type = VRCAvatarDescriptor.AnimLayerType.FX } }).ToArray();
             for (int i = 0; i < layers.Length; i++)
                 if (layers[i].type == VRCAvatarDescriptor.AnimLayerType.FX)
                 {
@@ -258,21 +277,27 @@ namespace nxclone
                     layers[i].isEnabled = true;
                 }
             descriptor.baseAnimationLayers = layers;
-            var parameters = Instantiate(descriptor.expressionParameters);
+            var parameters = descriptor.customExpressions && descriptor.expressionParameters
+                ? Instantiate(descriptor.expressionParameters)
+                : ScriptableObject.CreateInstance<VRCExpressionParameters>();
             parameters.name = "nxclone parameters";
-            parameters.parameters = parameters.parameters.Concat(new[] { new VRCExpressionParameters.Parameter {
-                name = Parameter, valueType = VRCExpressionParameters.ValueType.Bool, defaultValue = 0, saved = true, networkSynced = true
+            parameters.parameters = (parameters.parameters ?? Array.Empty<VRCExpressionParameters.Parameter>()).Concat(new[] { new VRCExpressionParameters.Parameter {
+                name = parameter, valueType = VRCExpressionParameters.ValueType.Bool, defaultValue = 0, saved = true, networkSynced = true
             } }).ToArray();
             AssetDatabase.CreateAsset(parameters, $"{folder}/parameters.asset");
             descriptor.expressionParameters = parameters;
-            var menu = Instantiate(descriptor.expressionsMenu);
+            var menu = descriptor.customExpressions && descriptor.expressionsMenu
+                ? Instantiate(descriptor.expressionsMenu)
+                : ScriptableObject.CreateInstance<VRCExpressionsMenu>();
             menu.name = "nxclone menu";
+            if (menu.controls == null) menu.controls = new List<VRCExpressionsMenu.Control>();
             menu.controls.Add(new VRCExpressionsMenu.Control {
                 name = "nxclone", type = VRCExpressionsMenu.Control.ControlType.Toggle,
-                parameter = new VRCExpressionsMenu.Control.Parameter { name = Parameter }
+                parameter = new VRCExpressionsMenu.Control.Parameter { name = parameter }
             });
             AssetDatabase.CreateAsset(menu, $"{folder}/menu.asset");
             descriptor.expressionsMenu = menu;
+            descriptor.customExpressions = true;
         }
 
         static void SetActiveCurve(AnimationClip clip, string path, float value)
