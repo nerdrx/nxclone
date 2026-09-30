@@ -97,3 +97,5 @@ The original avatar project is never modified by these isolated fixture checks.
 
 - `NxCloneOptionsSmoke.RunBoth`: checks integrated all-axis and default Distance/Yaw generation, menu pagination, exported axis parameters and 8-bit-per-axis costs.
 - `NxCloneAxisSelectionSmoke.Run`: checks all eight axis masks plus native Distance/Yaw movement, retained disabled coordinates and world-drop hold/resume. Use hidden Gamescope; omit `-quit`.
+
+- `NxCloneAfterimagesOnlySmoke.Run`: zero clone slots, empty preset persistence, upload generation, afterimage-only menus and one-bit budgeting with clone options retained.

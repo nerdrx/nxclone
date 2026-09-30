@@ -63,7 +63,7 @@ namespace nxclone
             scroll = EditorGUILayout.BeginScrollView(scroll);
             EditorGUILayout.LabelField("nxclone", EditorStyles.boldLabel);
             avatar = (VRCAvatarDescriptor)ObjectField("Root avatar", avatar, typeof(VRCAvatarDescriptor), true);
-            if (slots == null || slots.Count == 0) slots = new List<NxCloneSlot> { new NxCloneSlot() };
+            if (slots == null) slots = new List<NxCloneSlot>();
             var nextPreset = (NxClonePreset)ObjectField("Layout preset", preset, typeof(NxClonePreset), false);
             if (nextPreset != preset) { preset = nextPreset; if (preset) LoadPreset(); }
             using (new EditorGUILayout.HorizontalScope())
@@ -108,15 +108,19 @@ namespace nxclone
             {
                 using (new EditorGUI.DisabledScope(slots.Count >= 4))
                     if (GUILayout.Button("Add clone")) slots.Add(new NxCloneSlot());
-                using (new EditorGUI.DisabledScope(slots.Count <= 1))
+                using (new EditorGUI.DisabledScope(slots.Count == 0))
                     if (GUILayout.Button("Remove last")) slots.RemoveAt(slots.Count - 1);
             }
+            if (GUILayout.Button("Afterimages only")) { slots.Clear(); afterimages = true; }
             writeDefaults = (NxCloneWriteDefaults)EnumField("Write Defaults", writeDefaults);
-            worldDrop = Toggle("World drop controls", worldDrop);
-            poseFreeze = Toggle("Freeze pose controls", poseFreeze);
+            if (slots.Count > 0)
+            {
+                worldDrop = Toggle("World drop controls", worldDrop);
+                poseFreeze = Toggle("Freeze pose controls", poseFreeze);
+            }
             copyVisemes = Toggle("Copy visemes", copyVisemes);
-            copyFxAnimations = Toggle("Copy clone expressions / FX", copyFxAnimations);
-            using (new EditorGUI.DisabledScope(!copyFxAnimations))
+            copyFxAnimations = Toggle("Copy expressions / FX", copyFxAnimations);
+            if (slots.Count > 0) using (new EditorGUI.DisabledScope(!copyFxAnimations))
                 independentCloneFx = Toggle("Independent clone FX / expression recording", independentCloneFx);
             bool vrcfuryCompressorAvailable = HasVrcfuryParameterCompressor();
             using (new EditorGUI.DisabledScope(!vrcfuryCompressorAvailable))
@@ -125,34 +129,37 @@ namespace nxclone
                 EditorGUILayout.HelpBox("Deferred parameter budgeting requires the VRCFury Parameter Compressor. Install and enable VRCFury to use this option.", MessageType.Info);
             else if (deferParameterBudgetToVrcfury)
                 EditorGUILayout.HelpBox("VRCFury compresses the completed avatar FX and expression parameters after nxclone builds. Upload is stopped if the final synced cost still exceeds 256 bits.", MessageType.Info);
-            runtimePosition = Toggle("In-game position dials", runtimePosition);
-            if (runtimePosition)
-                positionAxes = AxisChoices(positionAxes, "Left / Right (X)", "Down / Up (Y)", "Distance (Z)");
-            runtimeRotation = Toggle("In-game rotation dials", runtimeRotation);
-            if (runtimeRotation)
-                rotationAxes = AxisChoices(rotationAxes, "Pitch (X)", "Yaw (Y)", "Roll (Z)");
-            if (runtimePosition || runtimeRotation)
-                EditorGUILayout.LabelField($"Placement controls: {8 * ((runtimePosition ? AxisCount(positionAxes) : 0) + (runtimeRotation ? AxisCount(rotationAxes) : 0))} bits per clone", EditorStyles.wordWrappedLabel);
-            runtimeScale = Toggle("In-game scale dial", runtimeScale);
-            posing = Toggle("Grabbable limb posing", posing);
-            limbIk = Toggle("Limb IK controls", limbIk);
-            using (new EditorGUI.DisabledScope(!limbIk))
-                limbContacts = Toggle("Remote limb contact attachment", limbContacts);
-            if (limbIk && limbContacts)
-                EditorGUILayout.HelpBox("Adds four contact trackers per clone for remote hands/feet. Both users must enable avatar contacts; this increases contact and constraint counts.", MessageType.Info);
-            wear = Toggle("Wear a clone", wear);
-            recording = Toggle("Pose recording / playback", recording);
-            if (recording)
+            if (slots.Count > 0)
             {
-                recordingSamples = EditorGUILayout.IntSlider("Pose samples", recordingSamples, 2, RecordingSampleLimit());
-                recordingDuration = EditorGUILayout.Slider("Recording seconds", recordingDuration, 1f, 30f);
-                EditorGUILayout.HelpBox("Sampled body pose and movement interpolate during playback. Turn world drop off to play movement, or leave it on for in-place playback. Each sample adds bone constraints. " +
-                    (independentCloneFx ? "Independent clone FX also records expression and gesture snapshots." : "Enable Independent clone FX to record expression and gesture snapshots."), MessageType.Info);
+                runtimePosition = Toggle("In-game position dials", runtimePosition);
+                if (runtimePosition)
+                    positionAxes = AxisChoices(positionAxes, "Left / Right (X)", "Down / Up (Y)", "Distance (Z)");
+                runtimeRotation = Toggle("In-game rotation dials", runtimeRotation);
+                if (runtimeRotation)
+                    rotationAxes = AxisChoices(rotationAxes, "Pitch (X)", "Yaw (Y)", "Roll (Z)");
+                if (runtimePosition || runtimeRotation)
+                    EditorGUILayout.LabelField($"Placement controls: {8 * ((runtimePosition ? AxisCount(positionAxes) : 0) + (runtimeRotation ? AxisCount(rotationAxes) : 0))} bits per clone", EditorStyles.wordWrappedLabel);
+                runtimeScale = Toggle("In-game scale dial", runtimeScale);
+                posing = Toggle("Grabbable limb posing", posing);
+                limbIk = Toggle("Limb IK controls", limbIk);
+                using (new EditorGUI.DisabledScope(!limbIk))
+                    limbContacts = Toggle("Remote limb contact attachment", limbContacts);
+                if (limbIk && limbContacts)
+                    EditorGUILayout.HelpBox("Adds four contact trackers per clone for remote hands/feet. Both users must enable avatar contacts; this increases contact and constraint counts.", MessageType.Info);
+                wear = Toggle("Wear a clone", wear);
+                recording = Toggle("Pose recording / playback", recording);
+                if (recording)
+                {
+                    recordingSamples = EditorGUILayout.IntSlider("Pose samples", recordingSamples, 2, RecordingSampleLimit());
+                    recordingDuration = EditorGUILayout.Slider("Recording seconds", recordingDuration, 1f, 30f);
+                    EditorGUILayout.HelpBox("Sampled body pose and movement interpolate during playback. Turn world drop off to play movement, or leave it on for in-place playback. Each sample adds bone constraints. " +
+                        (independentCloneFx ? "Independent clone FX also records expression and gesture snapshots." : "Enable Independent clone FX to record expression and gesture snapshots."), MessageType.Info);
+                }
+                EditorGUILayout.Space();
+                cloneGesture = (NxCloneGesture)EnumField("Clone visibility gesture", cloneGesture);
+                if (cloneGesture != NxCloneGesture.Disabled)
+                    cloneGestureHand = (NxCloneGestureHand)EnumField("Clone gesture hand", cloneGestureHand);
             }
-            EditorGUILayout.Space();
-            cloneGesture = (NxCloneGesture)EnumField("Clone visibility gesture", cloneGesture);
-            if (cloneGesture != NxCloneGesture.Disabled)
-                cloneGestureHand = (NxCloneGestureHand)EnumField("Clone gesture hand", cloneGestureHand);
             afterimages = Toggle("Add afterimages", afterimages);
             if (afterimages)
             {
@@ -256,8 +263,8 @@ namespace nxclone
 
         void LoadPreset()
         {
-            slots = preset.slots == null || preset.slots.Count == 0
-                ? new List<NxCloneSlot> { new NxCloneSlot() }
+            slots = preset.slots == null
+                ? new List<NxCloneSlot>()
                 : preset.slots.Take(4).Select(slot => slot == null ? new NxCloneSlot() : new NxCloneSlot {
                     offset = slot.offset, rotation = slot.rotation, scale = slot.scale, mirror = slot.mirror, movement = slot.movement, attachTo = slot.attachTo,
                     contactAnchor = slot.contactAnchor, contactTag = slot.contactTag, contactAllowSelf = slot.contactAllowSelf, contactAllowOthers = slot.contactAllowOthers
@@ -356,8 +363,16 @@ namespace nxclone
                 issues.Add("Root needs an Animator with a valid humanoid Avatar. Set model Rig to Humanoid and fix its mapping.");
             if (root.GetComponentsInChildren<SkinnedMeshRenderer>(true).Length == 0)
                 issues.Add("Root needs at least one SkinnedMeshRenderer.");
-            if (slots == null || slots.Count < 1 || slots.Count > 4) issues.Add("Choose one to four clone slots.");
-            else for (int i = 0; i < slots.Count; i++)
+            if (slots == null || slots.Count > 4) { issues.Add("Choose up to four clone slots."); return issues; }
+            if (slots.Count == 0 && !ghosts) issues.Add("Add a clone or enable afterimages.");
+            if (slots.Count == 0 && ghosts)
+            {
+                int external = root.GetComponentsInChildren<SkinnedMeshRenderer>(true)
+                    .SelectMany(renderer => renderer.bones ?? Array.Empty<Transform>()).Where(bone => bone)
+                    .Distinct().Count(bone => !bone.IsChildOf(root.transform));
+                if (external > 0) issues.Add($"Afterimages: {external} bones reference objects outside the root avatar. Rebind the SkinnedMeshRenderer bones.");
+            }
+            for (int i = 0; i < slots.Count; i++)
             {
                 var slot = slots[i];
                 if (slot == null) { issues.Add($"Clone {i + 1}: slot is empty. Remove it or add a new slot."); continue; }
@@ -395,7 +410,7 @@ namespace nxclone
                 issues.Add("Placement axis selection is invalid. Choose X, Y and/or Z axes.");
             if (root.customExpressions)
             {
-                int needed = 1 + slots.Count + (ghosts ? 1 : 0) + (drop ? slots.Count : 0) + (freeze ? slots.Count : 0) + (scale ? 8 : 0) + (record ? 10 * slots.Count : 0) + (pose || ik ? slots.Count : 0) + (wearing ? 8 : 0) + (ik ? slots.Count : 0) + slots.Count(slot => slot.contactAnchor) + (ik && remoteLimbs ? 4 * slots.Count : 0) + (positionControls ? 8 * AxisCount(positionAxes) * slots.Count : 0) + (rotationControls ? 8 * AxisCount(rotationAxes) * slots.Count : 0);
+                int needed = (slots.Count > 0 ? 1 : 0) + slots.Count + (ghosts ? 1 : 0) + (drop ? slots.Count : 0) + (freeze ? slots.Count : 0) + (scale && slots.Count > 0 ? 8 : 0) + (record ? 10 * slots.Count : 0) + (pose || ik ? slots.Count : 0) + (wearing && slots.Count > 0 ? 8 : 0) + (ik ? slots.Count : 0) + slots.Count(slot => slot.contactAnchor) + (ik && remoteLimbs ? 4 * slots.Count : 0) + (positionControls ? 8 * AxisCount(positionAxes) * slots.Count : 0) + (rotationControls ? 8 * AxisCount(rotationAxes) * slots.Count : 0);
                 if (!canDeferParameterBudget && root.expressionParameters && root.expressionParameters.CalcTotalCost() + needed > VRCExpressionParameters.MAX_PARAMETER_COST)
                     issues.Add($"Expression Parameters need {needed} free bits for nxclone controls.");
 
@@ -750,8 +765,8 @@ namespace nxclone
             var oldFx = Fx(descriptor);
             string fxPath = $"{folder}/fx.controller";
             var reserved = new HashSet<string>();
-            string parameter = AvailableParameter(descriptor, Parameter, reserved);
-            reserved.Add(parameter);
+            string parameter = clones.Count > 0 ? AvailableParameter(descriptor, Parameter, reserved) : null;
+            if (parameter != null) reserved.Add(parameter);
             string ghostParameter = ghosts.Count == 0 ? null : AvailableParameter(descriptor, "nxclone_afterimages", reserved);
             if (ghostParameter != null) reserved.Add(ghostParameter);
             AnimatorController fx;
@@ -759,7 +774,7 @@ namespace nxclone
             if (!sourceFx || !AssetDatabase.CopyAsset(AssetDatabase.GetAssetPath(sourceFx), fxPath))
                 throw new InvalidOperationException("Could not copy the avatar FX controller to the generated folder.");
             fx = AssetDatabase.LoadAssetAtPath<AnimatorController>(fxPath);
-            if (copyFxAnimations && oldFx && !independentCloneFx)
+            if (clones.Count > 0 && copyFxAnimations && oldFx && !independentCloneFx)
             {
                 var sameRootClones = clones.Where((clone, i) => !slots[i].source || slots[i].source == avatar).ToArray();
                 NxCloneFxMirror.MirrorFxCurves(fx, descriptor.transform, sameRootClones, folder);
@@ -806,7 +821,7 @@ namespace nxclone
                 });
             }
             int controlsLayerStart = fx.layers.Length;
-            fx.AddParameter(parameter, AnimatorControllerParameterType.Bool);
+            if (parameter != null) fx.AddParameter(parameter, AnimatorControllerParameterType.Bool);
             var cloneEnabledParameters = new List<string>();
             for (int i = 0; i < clones.Count; i++)
             {
@@ -887,7 +902,7 @@ namespace nxclone
                 rotationControls.Add(controls);
             }
             string scaleParameter = null;
-            if (runtimeScale)
+            if (runtimeScale && clones.Count > 0)
             {
                 scaleParameter = AvailableParameter(descriptor, "nxclone_scale", reserved);
                 reserved.Add(scaleParameter);
@@ -994,7 +1009,7 @@ namespace nxclone
             if (copyVisemes) for (int i = 0; i < ghosts.Count; i++)
                 NxCloneVisemes.AddCloneVisemes(fx, descriptor, descriptor.transform, ghosts[i], folder, $"nxclone afterimage {i + 1} visemes");
             NxCloneWear.Result wearControls = null;
-            if (wear)
+            if (wear && clones.Count > 0)
             {
                 var originalRenderers = descriptor.GetComponentsInChildren<Renderer>(true)
                     .Where(renderer => !renderer.transform.IsChildOf(group) &&
@@ -1024,7 +1039,7 @@ namespace nxclone
                 AssetDatabase.CreateAsset(wearControls.Menu, $"{folder}/wear-menu.asset");
             }
             var gestureLayers = new[] {
-                NxCloneGestureControls.Configure(fx, parameter, cloneGesture, cloneGestureHand, "clones"),
+                parameter == null ? null : NxCloneGestureControls.Configure(fx, parameter, cloneGesture, cloneGestureHand, "clones"),
                 ghostParameter == null ? null : NxCloneGestureControls.Configure(fx, ghostParameter, afterimageGesture, afterimageGestureHand, "afterimages")
             };
             var originalStates = oldFx ? oldFx.layers.SelectMany(layer => States(layer.stateMachine)).ToArray() : Array.Empty<AnimatorState>();
@@ -1063,9 +1078,10 @@ namespace nxclone
                 ? Instantiate(descriptor.expressionParameters)
                 : ScriptableObject.CreateInstance<VRCExpressionParameters>();
             parameters.name = "nxclone parameters";
-            var addedParameters = new List<VRCExpressionParameters.Parameter> { new VRCExpressionParameters.Parameter {
+            var addedParameters = new List<VRCExpressionParameters.Parameter>();
+            if (parameter != null) addedParameters.Add(new VRCExpressionParameters.Parameter {
                 name = parameter, valueType = VRCExpressionParameters.ValueType.Bool, defaultValue = 0, saved = false, networkSynced = true
-            } };
+            });
             if (ghostParameter != null)
                 addedParameters.Add(new VRCExpressionParameters.Parameter {
                     name = ghostParameter, valueType = VRCExpressionParameters.ValueType.Bool, defaultValue = 0, saved = false, networkSynced = true
@@ -1138,8 +1154,8 @@ namespace nxclone
                 menu = wrapper;
             }
             var toggle = new VRCExpressionsMenu.Control {
-                name = "nxclone", type = VRCExpressionsMenu.Control.ControlType.Toggle,
-                parameter = new VRCExpressionsMenu.Control.Parameter { name = parameter }, value = 1
+                name = clones.Count == 0 ? "Afterimages" : "nxclone", type = VRCExpressionsMenu.Control.ControlType.Toggle,
+                parameter = new VRCExpressionsMenu.Control.Parameter { name = clones.Count == 0 ? ghostParameter : parameter }, value = 1
             };
             if (clones.Count == 0) menu.controls.Add(toggle);
             else

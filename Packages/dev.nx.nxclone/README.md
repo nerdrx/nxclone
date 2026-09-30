@@ -13,3 +13,5 @@ Linux native tests cover constraints, capture/replay and SDK preprocessing. Live
 Original editor code and licensed MIT VRLabs Contact Tracker assets are included. No purchased packages, vendor DLLs or avatar meshes are distributed.
 
 Root slots default to **DancePartner** movement: steps follow the clone’s facing axes and turns happen around its own root. Hide/show captures a fresh origin. Choose **Attached** to follow the avatar as an attached object; bone/custom anchors always use attachment. Dance mode adds three constraints per clone, without new parameters.
+
+Use **Afterimages only** for trails without a clone, or remove all clone slots and enable afterimages. The standalone Afterimages toggle costs one synced bit. Clone-only controls are hidden and emit no parameters, even if a previous setup had them enabled.

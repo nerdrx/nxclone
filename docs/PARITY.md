@@ -1,6 +1,6 @@
 # Feature coverage and validation
 
-Version 0.3.4 adds dance-partner root motion. Full feature parity is not established. This matrix distinguishes implementation from runtime proof; there is no claim of complete superiority over another product.
+Version 0.3.5 adds standalone afterimages without clone slots. Full feature parity is not established. This matrix distinguishes implementation from runtime proof; there is no claim of complete superiority over another product.
 
 ## Implemented
 
@@ -12,6 +12,7 @@ Version 0.3.4 adds dance-partner root motion. Full feature parity is not establi
 | In-game pitch/yaw/roll rotation dials | Native signed quarter-turns, combined local axes, rotated/custom anchors, retained yaw-180 setup orientation, position dial coexistence and world-drop hold/resume pass. Three local carriers avoid competing quaternion animation layers; integrated menu/parameter and Write Defaults checks also pass. Default axis selections are Distance (Z) and Yaw (Y), with 8 synced bits per enabled axis. |
 | Axis selection | All eight masks, empty-selection side effects, menus/parameter mappings, preserved disabled coordinates and default Distance/Yaw settings pass. Native selected Distance/Yaw movement and world-drop hold/resume pass; integrated default generation exports 16 synced bits per clone. |
 | Afterimage rig registration | Native scaled/rotated rig render shape agrees at rest; animated armature translation/rotation follows with lag and returns to exact alignment. Local scale tracks directly to avoid feedback drift. The supplied avatar maps 178 render rig paths (534 constraints per ghost). |
+| Standalone afterimages | Empty clone-slot presets, upload generation, external-bone rejection, direct afterimage menu and 255-to-256-bit budgeting checks pass. Clone-only flags generate no controls with zero slots. |
 | Hidden spawn, master and individual visibility, afterimage toggle | Generated Animator controls and menu/parameter composition checks. |
 | VRCFury Armature Link | Full SDK preprocessing of an isolated copy of the supplied avatar, with six linked mesh/bone mappings checked. |
 | Flat afterimages and primary silhouette priority | Offscreen GPU checks cover flat alpha, camera proximity fade, distinct overlapping colours and priority over physically nearer ghosts. Geometry silhouettes and reserved stencil bits remain the documented limits. |
