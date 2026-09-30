@@ -47,8 +47,17 @@ namespace nxclone
                 afterimageColor = EditorGUILayout.ColorField("Single color / alpha", afterimageColor);
                 EditorGUILayout.HelpBox("Motion delay uses self-referencing VRChat constraints. It varies with frame rate, not fixed milliseconds. PC shader only.", MessageType.Info);
             }
+            if (avatar && (cloneSource || avatar))
+            {
+                var rig = cloneSource ? cloneSource : avatar;
+                int bones = rig.GetComponentsInChildren<SkinnedMeshRenderer>(true)
+                    .SelectMany(r => r.bones ?? Array.Empty<Transform>()).Where(t => t).Distinct().Count();
+                int estimated = (cloneCount + (afterimages ? afterimageCount : 0)) * bones + (afterimages ? afterimageCount : 0);
+                if (estimated > 350)
+                    EditorGUILayout.HelpBox($"About {estimated} new constraints. VRChat rates PC avatars above 350 constraints Very Poor; review performance before upload.", MessageType.Warning);
+            }
             EditorGUILayout.Space();
-            var issues = Preflight(avatar, cloneSource ? cloneSource : avatar, cloneCount, afterimages, afterimageCount);
+            var issues = Preflight(avatar, cloneSource ? cloneSource : avatar, afterimages);
             EditorGUILayout.LabelField("Avatar check", EditorStyles.boldLabel);
             foreach (var issue in issues) EditorGUILayout.HelpBox(issue, MessageType.Error);
             if (issues.Count == 0) EditorGUILayout.HelpBox("Ready. Originals are left untouched.", MessageType.Info);
@@ -57,7 +66,7 @@ namespace nxclone
             EditorGUILayout.EndScrollView();
         }
 
-        static List<string> Preflight(VRCAvatarDescriptor root, VRCAvatarDescriptor source, int copies, bool ghosts, int ghostCount)
+        static List<string> Preflight(VRCAvatarDescriptor root, VRCAvatarDescriptor source, bool ghosts)
         {
             var issues = new List<string>();
             if (!root) { issues.Add("Choose a scene avatar with a VRC Avatar Descriptor."); return issues; }
@@ -95,8 +104,6 @@ namespace nxclone
             }
             if (ghosts && !Shader.Find("nxclone/solid translucent"))
                 issues.Add("Afterimage shader has not imported. Reimport the nxclone package.");
-            int estimated = (copies + (ghosts ? ghostCount : 0)) * sourceBones.Count();
-            if (estimated > 1024) issues.Add($"Estimated {estimated} bone constraints is excessive. Reduce clones or mesh bones.");
             return issues;
         }
 
@@ -112,7 +119,7 @@ namespace nxclone
         void Generate()
         {
             var source = cloneSource ? cloneSource : avatar;
-            var issues = Preflight(avatar, source, cloneCount, afterimages, afterimageCount);
+            var issues = Preflight(avatar, source, afterimages);
             if (issues.Count > 0) { EditorUtility.DisplayDialog("nxclone check", string.Join("\n", issues), "OK"); return; }
             GameObject output = null;
             string folder = null;

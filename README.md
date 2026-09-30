@@ -4,7 +4,7 @@ Independent, source-first VRChat avatar clone builder targeting Unity 2022.3 on 
 
 ## Install
 
-Add `Packages/dev.nx.nxclone` as a local package in VRChat Creator Companion or Unity Package Manager. Requires VRChat Avatars SDK 3.7.3 or newer. Open **Tools > nxclone**.
+In VRChat Creator Companion, add the repository URL `https://raw.githubusercontent.com/nerdrx/nxclone/main/index.json`, then add `nxclone` to an avatar project. For local development, add `Packages/dev.nx.nxclone` as a user package. Requires VRChat Avatars SDK 3.7.3 or newer. Open **Tools > nxclone**.
 
 ## Avatar requirements
 
@@ -20,7 +20,7 @@ Afterimage delay is constraint feedback: it is frame-rate dependent, not a fixed
 
 ## Distribution
 
-This repository contains only original source. Do not commit purchased `.unitypackage` files, vendor DLLs, or avatar assets. Local VPM installation works from the folder; publishing a public VPM listing needs a hosted zip URL and repository index.
+This repository contains only original source. Do not commit purchased `.unitypackage` files, vendor DLLs, or avatar assets. The VPM index points to the release zip.
 
 ## Validation status
 
