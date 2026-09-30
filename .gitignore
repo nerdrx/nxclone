@@ -1,0 +1,10 @@
+*.unitypackage
+*.dll
+Library/
+Temp/
+Obj/
+Logs/
+UserSettings/
+.DS_Store
+dist/
+__pycache__/

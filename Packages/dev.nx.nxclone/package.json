@@ -1,0 +1,11 @@
+{
+  "name": "dev.nx.nxclone",
+  "version": "0.1.0",
+  "displayName": "nxclone",
+  "description": "Local, source-first VRChat avatar clone and afterimage builder.",
+  "unity": "2022.3",
+  "author": { "name": "NX", "email": "nerdrx@users.noreply.github.com" },
+  "license": "MIT",
+  "vpmDependencies": { "com.vrchat.avatars": ">=3.7.3" },
+  "dependencies": {}
+}

@@ -1,0 +1,30 @@
+{
+  "name": "nxclone",
+  "id": "dev.nx.nxclone",
+  "url": "https://raw.githubusercontent.com/nerdrx/nxclone/main/index.json",
+  "author": "nerdrx@users.noreply.github.com",
+  "packages": {
+    "dev.nx.nxclone": {
+      "versions": {
+        "0.1.0": {
+          "name": "dev.nx.nxclone",
+          "version": "0.1.0",
+          "displayName": "nxclone",
+          "description": "Local, source-first VRChat avatar clone and afterimage builder.",
+          "unity": "2022.3",
+          "author": {
+            "name": "NX",
+            "email": "nerdrx@users.noreply.github.com"
+          },
+          "license": "MIT",
+          "vpmDependencies": {
+            "com.vrchat.avatars": ">=3.7.3"
+          },
+          "dependencies": {},
+          "url": "https://github.com/nerdrx/nxclone/releases/download/v0.1.0/dev.nx.nxclone-0.1.0.zip",
+          "zipSHA256": "a1612eb0534a7f075161ac3f802c1235b7d1663880ad1f1d4405fe84e280bf42"
+        }
+      }
+    }
+  }
+}
