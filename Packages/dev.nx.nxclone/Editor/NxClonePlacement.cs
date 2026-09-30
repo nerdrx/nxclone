@@ -47,6 +47,7 @@ namespace nxclone
             var driver = new GameObject(name).transform;
             driver.SetParent(frame, false);
             driver.SetPositionAndRotation(source.position, source.rotation);
+            driver.localScale = source.lossyScale;
             var pose = driver.gameObject.AddComponent<VRCParentConstraint>();
             pose.Sources.Add(new VRCConstraintSource(driver, 1f));
             pose.Sources.Add(new VRCConstraintSource(source, weight));

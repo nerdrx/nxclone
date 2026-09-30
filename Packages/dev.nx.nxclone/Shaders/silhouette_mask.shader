@@ -1,9 +1,9 @@
 Shader "nxclone/silhouette mask" {
     SubShader {
         Tags { "Queue"="Transparent+49" "RenderType"="Transparent" }
-        Cull Off ZWrite Off ZTest LEqual ColorMask 0
-        // nxclone reserves low stencil bit 0 for the primary avatar.
-        Stencil { Ref 1 ReadMask 1 WriteMask 1 Comp Always Pass Replace }
+        Cull Off ZWrite Off ZTest Always ColorMask 0
+        // Bit 0 marks the primary; bits 1-4 block and dedupe each of four ghosts.
+        Stencil { Ref 31 ReadMask 31 WriteMask 31 Comp Always Pass Replace }
         Pass {
             CGPROGRAM
             #pragma vertex vert

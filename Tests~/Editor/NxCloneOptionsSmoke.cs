@@ -21,6 +21,10 @@ public static class NxCloneOptionsSmoke
 
     public static void Run()
     {
+        Assert(new NxCloneSlot().offset == Vector3.forward && new NxCloneSetupSlot().offset == Vector3.forward,
+            "new slots should default to one meter forward");
+        Assert(new NxCloneSlot().rotation == new Vector3(0f, 180f, 0f) && new NxCloneSetupSlot().rotation == new Vector3(0f, 180f, 0f),
+            "new slots should default to 180 degrees yaw");
         if (AssetDatabase.IsValidFolder(Folder)) AssetDatabase.DeleteAsset(Folder);
         AssetDatabase.CreateFolder("Assets", "nxclone-options-smoke");
         GameObject root = null;
@@ -113,7 +117,7 @@ public static class NxCloneOptionsSmoke
                 new NxCloneSlot { contactAnchor = true, contactTag = "HandL", contactAllowOthers = true },
                 new NxCloneSlot()
             });
-            foreach (var option in new[] { "worldDrop", "poseFreeze", "posing", "recording", "limbIk", "limbContacts", "wear", "afterimages", "runtimeScale", "independentCloneFx" })
+            foreach (var option in new[] { "worldDrop", "poseFreeze", "posing", "recording", "limbIk", "limbContacts", "wear", "afterimages", "runtimeScale", "runtimePosition", "independentCloneFx" })
                 Set(window, option, true);
             Set(window, "writeDefaults", NxCloneWriteDefaults.On);
             Set(window, "afterimageCount", 2);
@@ -140,9 +144,21 @@ public static class NxCloneOptionsSmoke
                 root.transform.Find("nxclone/world/placement-2/clone-2")
             };
             Assert(clones.All(clone => clone), "two linked clone visuals should be built");
+            var ghostMaterials = new[] { AssetDatabase.LoadAssetAtPath<Material>(Folder + "/afterimage-1.mat"), AssetDatabase.LoadAssetAtPath<Material>(Folder + "/afterimage-2.mat") };
+            Assert(ghostMaterials.All(material => material) && ghostMaterials[0].color != ghostMaterials[1].color,
+                "multiple afterimages should have different default colours");
+            Assert(ghostMaterials[0].GetInt("_StencilBit") == 2 && ghostMaterials[1].GetInt("_StencilBit") == 4,
+                "each ghost must deduplicate only its own silhouette and respect the primary mask");
+            Assert(ghostMaterials[0].renderQueue > ghostMaterials[1].renderQueue,
+                "newest ghost must draw after older ghosts");
             var layers = fx.layers;
             for (int i = 1; i <= 2; i++)
             {
+                var positionParameters = expressionParameters.Where(parameter => parameter.name.StartsWith($"nxclone_position_{i}_", StringComparison.Ordinal)).ToArray();
+                Assert(positionParameters.Length == 3 && positionParameters.All(parameter => parameter.valueType == VRCExpressionParameters.ValueType.Float && parameter.defaultValue == 0.5f && parameter.networkSynced && !parameter.saved),
+                    $"clone {i} should expose three neutral, synced, unsaved position dials");
+                Assert(layers.Where(layer => layer.name.Contains($"nxclone_position_{i} position")).SelectMany(layer => layer.stateMachine.states).All(entry => !entry.state.writeDefaultValues),
+                    "position dials must keep Write Defaults off even when other generated layers use it");
                 Assert(layers.Any(layer => layer.name == $"nxclone_pose_{i} pose recording") &&
                        layers.Any(layer => layer.name == $"nxclone_expression_{i} expression capture") &&
                        layers.Any(layer => layer.name == $"nxclone_expression_{i} expression playback"),

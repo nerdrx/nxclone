@@ -27,6 +27,7 @@ namespace nxclone
         bool independentCloneFx;
         bool deferParameterBudgetToVrcfury;
         bool runtimeScale;
+        bool runtimePosition;
         bool posing;
         bool limbIk;
         bool limbContacts;
@@ -41,6 +42,8 @@ namespace nxclone
         bool afterimages;
         int afterimageCount = 1;
         float damping = 0.25f;
+        bool distinctAfterimageColors = true;
+        List<Color> afterimageColors = new List<Color>();
         Color afterimageColor = new Color(0.25f, 0.8f, 1f, 0.3f);
         Vector2 scroll;
 
@@ -49,11 +52,16 @@ namespace nxclone
 
         void OnGUI()
         {
+            minSize = new Vector2(260f, 300f);
+            var oldLabelWidth = EditorGUIUtility.labelWidth;
+            var oldWideMode = EditorGUIUtility.wideMode;
+            EditorGUIUtility.labelWidth = Mathf.Min(190f, position.width * 0.48f);
+            EditorGUIUtility.wideMode = false;
             scroll = EditorGUILayout.BeginScrollView(scroll);
             EditorGUILayout.LabelField("nxclone", EditorStyles.boldLabel);
-            avatar = (VRCAvatarDescriptor)EditorGUILayout.ObjectField("Root avatar", avatar, typeof(VRCAvatarDescriptor), true);
+            avatar = (VRCAvatarDescriptor)ObjectField("Root avatar", avatar, typeof(VRCAvatarDescriptor), true);
             if (slots == null || slots.Count == 0) slots = new List<NxCloneSlot> { new NxCloneSlot() };
-            var nextPreset = (NxClonePreset)EditorGUILayout.ObjectField("Layout preset", preset, typeof(NxClonePreset), false);
+            var nextPreset = (NxClonePreset)ObjectField("Layout preset", preset, typeof(NxClonePreset), false);
             if (nextPreset != preset) { preset = nextPreset; if (preset) LoadPreset(); }
             using (new EditorGUILayout.HorizontalScope())
             {
@@ -66,19 +74,24 @@ namespace nxclone
             {
                 var slot = slots[i];
                 EditorGUILayout.LabelField($"Clone {i + 1}", EditorStyles.miniBoldLabel);
-                slot.source = (VRCAvatarDescriptor)EditorGUILayout.ObjectField("Source (optional)", slot.source, typeof(VRCAvatarDescriptor), true);
-                slot.offset = EditorGUILayout.Vector3Field("Anchor offset", slot.offset);
-                slot.rotation = EditorGUILayout.Vector3Field("Anchor rotation", slot.rotation);
+                slot.source = (VRCAvatarDescriptor)ObjectField("Source (optional)", slot.source, typeof(VRCAvatarDescriptor), true);
+                slot.offset = EditorGUILayout.Vector3Field("Position from anchor (meters)", slot.offset);
+                slot.rotation = EditorGUILayout.Vector3Field("Rotation from anchor (degrees)", slot.rotation);
+                using (new EditorGUILayout.HorizontalScope())
+                {
+                    if (GUILayout.Button("Default placement")) { slot.offset = Vector3.forward; slot.rotation = new Vector3(0f, 180f, 0f); }
+                    if (GUILayout.Button("At anchor")) { slot.offset = Vector3.zero; slot.rotation = Vector3.zero; }
+                }
                 slot.scale = EditorGUILayout.Vector3Field("Scale", slot.scale);
-                slot.mirror = EditorGUILayout.Toggle("Mirror X", slot.mirror);
-                slot.attachTo = (NxAttachPoint)EditorGUILayout.EnumPopup("Attach to", slot.attachTo);
-                slot.anchor = (Transform)EditorGUILayout.ObjectField("Custom anchor (optional)", slot.anchor, typeof(Transform), true);
-                slot.contactAnchor = EditorGUILayout.Toggle("Attach to remote contacts", slot.contactAnchor);
+                slot.mirror = Toggle("Mirror X", slot.mirror);
+                slot.attachTo = (NxAttachPoint)EnumField("Attach to", slot.attachTo);
+                slot.anchor = (Transform)ObjectField("Custom anchor (optional)", slot.anchor, typeof(Transform), true);
+                slot.contactAnchor = Toggle("Attach to remote contacts", slot.contactAnchor);
                 if (slot.contactAnchor)
                 {
                     slot.contactTag = EditorGUILayout.TextField("Contact sender tag", slot.contactTag);
-                    slot.contactAllowSelf = EditorGUILayout.Toggle("Allow self contacts", slot.contactAllowSelf);
-                    slot.contactAllowOthers = EditorGUILayout.Toggle("Allow other-avatar contacts", slot.contactAllowOthers);
+                    slot.contactAllowSelf = Toggle("Allow self contacts", slot.contactAllowSelf);
+                    slot.contactAllowOthers = Toggle("Allow other-avatar contacts", slot.contactAllowOthers);
                     EditorGUILayout.HelpBox(NxCloneContactAnchor.SenderHelp(slot.contactTag), MessageType.Info);
                 }
             }
@@ -89,29 +102,30 @@ namespace nxclone
                 using (new EditorGUI.DisabledScope(slots.Count <= 1))
                     if (GUILayout.Button("Remove last")) slots.RemoveAt(slots.Count - 1);
             }
-            writeDefaults = (NxCloneWriteDefaults)EditorGUILayout.EnumPopup("Write Defaults", writeDefaults);
-            worldDrop = EditorGUILayout.Toggle("World drop controls", worldDrop);
-            poseFreeze = EditorGUILayout.Toggle("Freeze pose controls", poseFreeze);
-            copyVisemes = EditorGUILayout.Toggle("Copy visemes", copyVisemes);
-            copyFxAnimations = EditorGUILayout.Toggle("Copy clone expressions / FX", copyFxAnimations);
+            writeDefaults = (NxCloneWriteDefaults)EnumField("Write Defaults", writeDefaults);
+            worldDrop = Toggle("World drop controls", worldDrop);
+            poseFreeze = Toggle("Freeze pose controls", poseFreeze);
+            copyVisemes = Toggle("Copy visemes", copyVisemes);
+            copyFxAnimations = Toggle("Copy clone expressions / FX", copyFxAnimations);
             using (new EditorGUI.DisabledScope(!copyFxAnimations))
-                independentCloneFx = EditorGUILayout.Toggle("Independent clone FX / expression recording", independentCloneFx);
+                independentCloneFx = Toggle("Independent clone FX / expression recording", independentCloneFx);
             bool vrcfuryCompressorAvailable = HasVrcfuryParameterCompressor();
             using (new EditorGUI.DisabledScope(!vrcfuryCompressorAvailable))
-                deferParameterBudgetToVrcfury = EditorGUILayout.Toggle("Defer parameter limit to VRCFury", deferParameterBudgetToVrcfury);
+                deferParameterBudgetToVrcfury = Toggle("Defer parameter limit to VRCFury", deferParameterBudgetToVrcfury);
             if (!vrcfuryCompressorAvailable)
                 EditorGUILayout.HelpBox("Deferred parameter budgeting requires the VRCFury Parameter Compressor. Install and enable VRCFury to use this option.", MessageType.Info);
             else if (deferParameterBudgetToVrcfury)
                 EditorGUILayout.HelpBox("VRCFury compresses the completed avatar FX and expression parameters after nxclone builds. Upload is stopped if the final synced cost still exceeds 256 bits.", MessageType.Info);
-            runtimeScale = EditorGUILayout.Toggle("In-game scale dial", runtimeScale);
-            posing = EditorGUILayout.Toggle("Grabbable limb posing", posing);
-            limbIk = EditorGUILayout.Toggle("Limb IK controls", limbIk);
+            runtimePosition = Toggle("In-game position dials (24 bits per clone)", runtimePosition);
+            runtimeScale = Toggle("In-game scale dial", runtimeScale);
+            posing = Toggle("Grabbable limb posing", posing);
+            limbIk = Toggle("Limb IK controls", limbIk);
             using (new EditorGUI.DisabledScope(!limbIk))
-                limbContacts = EditorGUILayout.Toggle("Remote limb contact attachment", limbContacts);
+                limbContacts = Toggle("Remote limb contact attachment", limbContacts);
             if (limbIk && limbContacts)
                 EditorGUILayout.HelpBox("Adds four contact trackers per clone for remote hands/feet. Both users must enable avatar contacts; this increases contact and constraint counts.", MessageType.Info);
-            wear = EditorGUILayout.Toggle("Wear a clone", wear);
-            recording = EditorGUILayout.Toggle("Pose recording / playback", recording);
+            wear = Toggle("Wear a clone", wear);
+            recording = Toggle("Pose recording / playback", recording);
             if (recording)
             {
                 recordingSamples = EditorGUILayout.IntSlider("Pose samples", recordingSamples, 2, RecordingSampleLimit());
@@ -120,18 +134,25 @@ namespace nxclone
                     (independentCloneFx ? "Independent clone FX also records expression and gesture snapshots." : "Enable Independent clone FX to record expression and gesture snapshots."), MessageType.Info);
             }
             EditorGUILayout.Space();
-            cloneGesture = (NxCloneGesture)EditorGUILayout.EnumPopup("Clone visibility gesture", cloneGesture);
+            cloneGesture = (NxCloneGesture)EnumField("Clone visibility gesture", cloneGesture);
             if (cloneGesture != NxCloneGesture.Disabled)
-                cloneGestureHand = (NxCloneGestureHand)EditorGUILayout.EnumPopup("Clone gesture hand", cloneGestureHand);
-            afterimages = EditorGUILayout.Toggle("Add afterimages", afterimages);
+                cloneGestureHand = (NxCloneGestureHand)EnumField("Clone gesture hand", cloneGestureHand);
+            afterimages = Toggle("Add afterimages", afterimages);
             if (afterimages)
             {
-                afterimageGesture = (NxCloneGesture)EditorGUILayout.EnumPopup("Afterimage visibility gesture", afterimageGesture);
+                afterimageGesture = (NxCloneGesture)EnumField("Afterimage visibility gesture", afterimageGesture);
                 if (afterimageGesture != NxCloneGesture.Disabled)
-                    afterimageGestureHand = (NxCloneGestureHand)EditorGUILayout.EnumPopup("Afterimage gesture hand", afterimageGestureHand);
+                    afterimageGestureHand = (NxCloneGestureHand)EnumField("Afterimage gesture hand", afterimageGestureHand);
                 afterimageCount = EditorGUILayout.IntSlider("Afterimage count", afterimageCount, 1, 4);
                 damping = EditorGUILayout.Slider("Follow strength", damping, 0.05f, 0.8f);
-                afterimageColor = EditorGUILayout.ColorField("Single color / alpha", afterimageColor);
+                afterimageColor = ColorField("Base colour / alpha", afterimageColor);
+                distinctAfterimageColors = Toggle("Different colour for each afterimage", distinctAfterimageColors);
+                if (distinctAfterimageColors)
+                {
+                    EnsureAfterimageColors();
+                    for (int i = 0; i < afterimageCount; i++)
+                        afterimageColors[i] = ColorField($"Afterimage {i + 1}", afterimageColors[i]);
+                }
                 EditorGUILayout.HelpBox("Motion delay uses self-referencing VRChat constraints. It varies with frame rate, not fixed milliseconds. PC shader only.", MessageType.Info);
             }
             if (avatar)
@@ -139,16 +160,15 @@ namespace nxclone
                 int estimated = slots.Sum(slot => (slot.source ? slot.source : avatar).GetComponentsInChildren<SkinnedMeshRenderer>(true)
                     .SelectMany(r => r.bones ?? Array.Empty<Transform>()).Where(t => t).Distinct().Count())
                     + slots.Count(slot => worldDrop || slot.attachTo != NxAttachPoint.Root);
-                if (afterimages) estimated += afterimageCount * avatar.GetComponentsInChildren<SkinnedMeshRenderer>(true)
-                    .SelectMany(r => r.bones ?? Array.Empty<Transform>()).Where(t => t).Distinct().Count() + afterimageCount;
+                if (afterimages) estimated += afterimageCount * avatar.GetComponentsInChildren<Transform>(true).Length * 3 + 2 * afterimageCount;
                 if (recording) estimated += EffectiveRecordingSamples() * slots.Sum(slot => (slot.source ? slot.source : avatar).GetComponentsInChildren<SkinnedMeshRenderer>(true)
                     .SelectMany(r => r.bones ?? Array.Empty<Transform>()).Where(t => t).Distinct().Count());
                 estimated += 2 + 2 * slots.Count;
                 if (estimated > 350)
-                    EditorGUILayout.HelpBox($"About {estimated} new constraints. VRChat rates PC avatars above 350 constraints Very Poor; review performance before upload.", MessageType.Warning);
+                    EditorGUILayout.HelpBox($"Up to {estimated} new constraints. VRChat rates PC avatars above 350 constraints Very Poor; review performance before upload.", MessageType.Warning);
             }
             EditorGUILayout.Space();
-            var issues = Preflight(avatar, slots, afterimages, worldDrop, poseFreeze, runtimeScale, recording, posing, deferParameterBudgetToVrcfury, wear, limbIk, limbContacts);
+            var issues = Preflight(avatar, slots, afterimages, worldDrop, poseFreeze, runtimeScale, recording, posing, deferParameterBudgetToVrcfury, wear, limbIk, limbContacts, runtimePosition);
             EditorGUILayout.LabelField("Avatar check", EditorStyles.boldLabel);
             foreach (var issue in issues) EditorGUILayout.HelpBox(issue, MessageType.Error);
             if (issues.Count == 0 && avatar)
@@ -156,6 +176,50 @@ namespace nxclone
             using (new EditorGUI.DisabledScope(issues.Count != 0))
                 if (GUILayout.Button("Generate scene copy")) Generate();
             EditorGUILayout.EndScrollView();
+            EditorGUIUtility.labelWidth = oldLabelWidth;
+            EditorGUIUtility.wideMode = oldWideMode;
+        }
+
+        bool Narrow => position.width < 430f;
+
+        UnityEngine.Object ObjectField(string label, UnityEngine.Object value, Type type, bool scene)
+        {
+            if (!Narrow) return EditorGUILayout.ObjectField(label, value, type, scene);
+            EditorGUILayout.LabelField(label, EditorStyles.wordWrappedLabel);
+            return EditorGUILayout.ObjectField(value, type, scene);
+        }
+
+        Enum EnumField(string label, Enum value)
+        {
+            if (!Narrow) return EditorGUILayout.EnumPopup(label, value);
+            EditorGUILayout.LabelField(label, EditorStyles.wordWrappedLabel);
+            return EditorGUILayout.EnumPopup(value);
+        }
+
+        Color ColorField(string label, Color value)
+        {
+            if (!Narrow) return EditorGUILayout.ColorField(label, value);
+            EditorGUILayout.LabelField(label, EditorStyles.wordWrappedLabel);
+            return EditorGUILayout.ColorField(value);
+        }
+
+        static bool Toggle(string label, bool value)
+        {
+            var style = new GUIStyle(EditorStyles.label) { wordWrap = true };
+            float height = Mathf.Max(EditorGUIUtility.singleLineHeight, style.CalcHeight(new GUIContent(label), EditorGUIUtility.currentViewWidth - 52f));
+            return EditorGUILayout.ToggleLeft(label, value, style, GUILayout.Height(height));
+        }
+
+        void EnsureAfterimageColors()
+        {
+            if (afterimageColors == null) afterimageColors = new List<Color>();
+            Color.RGBToHSV(afterimageColor, out float hue, out float saturation, out float value);
+            while (afterimageColors.Count < afterimageCount)
+            {
+                var color = Color.HSVToRGB(Mathf.Repeat(hue + afterimageColors.Count * 0.17f, 1f), saturation, value);
+                color.a = afterimageColor.a;
+                afterimageColors.Add(color);
+            }
         }
 
         void LoadPreset()
@@ -174,6 +238,7 @@ namespace nxclone
             independentCloneFx = preset.independentCloneFx;
             deferParameterBudgetToVrcfury = preset.deferParameterBudgetToVrcfury;
             runtimeScale = preset.runtimeScale;
+            runtimePosition = preset.runtimePosition;
             recordingDuration = preset.recordingDuration;
             recordingSamples = preset.recordingSamples;
             posing = preset.posing;
@@ -190,6 +255,8 @@ namespace nxclone
             afterimageCount = preset.afterimageCount;
             damping = preset.afterimageFollowStrength;
             afterimageColor = preset.afterimageColor;
+            distinctAfterimageColors = preset.distinctAfterimageColors;
+            afterimageColors = new List<Color>(preset.afterimageColors ?? new List<Color>());
         }
 
         void SavePreset()
@@ -211,6 +278,7 @@ namespace nxclone
             preset.independentCloneFx = independentCloneFx;
             preset.deferParameterBudgetToVrcfury = deferParameterBudgetToVrcfury;
             preset.runtimeScale = runtimeScale;
+            preset.runtimePosition = runtimePosition;
             preset.recordingDuration = recordingDuration;
             preset.recordingSamples = recordingSamples;
             preset.posing = posing;
@@ -226,6 +294,8 @@ namespace nxclone
             preset.afterimageCount = afterimageCount;
             preset.afterimageFollowStrength = damping;
             preset.afterimageColor = afterimageColor;
+            preset.distinctAfterimageColors = distinctAfterimageColors;
+            preset.afterimageColors = new List<Color>(afterimageColors);
             EditorUtility.SetDirty(preset);
             AssetDatabase.SaveAssets();
         }
@@ -234,7 +304,7 @@ namespace nxclone
 
         int EffectiveRecordingSamples() => Mathf.Min(recordingSamples, RecordingSampleLimit());
 
-        static List<string> Preflight(VRCAvatarDescriptor root, List<NxCloneSlot> slots, bool ghosts, bool drop, bool freeze, bool scale, bool record = false, bool pose = false, bool deferParameterBudget = false, bool wearing = false, bool ik = false, bool remoteLimbs = false)
+        static List<string> Preflight(VRCAvatarDescriptor root, List<NxCloneSlot> slots, bool ghosts, bool drop, bool freeze, bool scale, bool record = false, bool pose = false, bool deferParameterBudget = false, bool wearing = false, bool ik = false, bool remoteLimbs = false, bool positionControls = false)
         {
             var issues = new List<string>();
             if (!root) { issues.Add("Choose a scene avatar with a VRC Avatar Descriptor."); return issues; }
@@ -285,7 +355,7 @@ namespace nxclone
                 issues.Add("VRChat's default FX controller is missing. Reinstall or update the Avatars SDK package.");
             if (root.customExpressions)
             {
-                int needed = 1 + slots.Count + (ghosts ? 1 : 0) + (drop ? slots.Count : 0) + (freeze ? slots.Count : 0) + (scale ? 8 : 0) + (record ? 10 * slots.Count : 0) + (pose || ik ? slots.Count : 0) + (wearing ? 8 : 0) + (ik ? slots.Count : 0) + slots.Count(slot => slot.contactAnchor) + (ik && remoteLimbs ? 4 * slots.Count : 0);
+                int needed = 1 + slots.Count + (ghosts ? 1 : 0) + (drop ? slots.Count : 0) + (freeze ? slots.Count : 0) + (scale ? 8 : 0) + (record ? 10 * slots.Count : 0) + (pose || ik ? slots.Count : 0) + (wearing ? 8 : 0) + (ik ? slots.Count : 0) + slots.Count(slot => slot.contactAnchor) + (ik && remoteLimbs ? 4 * slots.Count : 0) + (positionControls ? 24 * slots.Count : 0);
                 if (!canDeferParameterBudget && root.expressionParameters && root.expressionParameters.CalcTotalCost() + needed > VRCExpressionParameters.MAX_PARAMETER_COST)
                     issues.Add($"Expression Parameters need {needed} free bits for nxclone controls.");
 
@@ -328,7 +398,7 @@ namespace nxclone
 
         void Generate()
         {
-            var issues = Preflight(avatar, slots, afterimages, worldDrop, poseFreeze, runtimeScale, recording, posing, deferParameterBudgetToVrcfury, wear, limbIk, limbContacts);
+            var issues = Preflight(avatar, slots, afterimages, worldDrop, poseFreeze, runtimeScale, recording, posing, deferParameterBudgetToVrcfury, wear, limbIk, limbContacts, runtimePosition);
             if (issues.Count > 0) { EditorUtility.DisplayDialog("nxclone check", string.Join("\n", issues), "OK"); return; }
             GameObject output = null;
             string folder = null;
@@ -368,6 +438,7 @@ namespace nxclone
                 setup.independentCloneFx = independentCloneFx;
                 setup.deferParameterBudgetToVrcfury = deferParameterBudgetToVrcfury;
                 setup.runtimeScale = runtimeScale;
+                setup.runtimePosition = runtimePosition;
                 setup.recordingDuration = recordingDuration;
                 setup.recordingSamples = EffectiveRecordingSamples();
                 setup.posing = posing;
@@ -383,6 +454,8 @@ namespace nxclone
                 setup.afterimageCount = afterimageCount;
                 setup.damping = damping;
                 setup.afterimageColor = afterimageColor;
+                setup.distinctAfterimageColors = distinctAfterimageColors;
+                setup.afterimageColors = new List<Color>(afterimageColors);
                 setup.generatedFolder = folder;
                 output.name = originalAvatar.name + "_nxclone";
                 AssetDatabase.SaveAssets();
@@ -435,13 +508,18 @@ namespace nxclone
                 {
                     var driver = NxClonePlacement.Delay(frame, output.transform, $"trail-{i + 1}", damping / (i + 1));
                     var ghost = BuildVisual(avatar.gameObject, driver, $"afterimage-{i + 1}");
-                    var color = afterimageColor;
+                    EnsureAfterimageColors();
+                    var color = distinctAfterimageColors ? afterimageColors[i] : afterimageColor;
                     var material = new Material(Shader.Find("nxclone/solid translucent"));
                     material.color = color;
+                    int stencilBit = 2 << i;
+                    material.SetFloat("_StencilBit", stencilBit);
+                    // Older trails draw first; the fastest-following trail is newest.
+                    material.renderQueue = 3050 + afterimageCount - 1 - i;
                     AssetDatabase.CreateAsset(material, $"{folder}/afterimage-{i + 1}.mat");
                     foreach (var renderer in ghost.GetComponentsInChildren<Renderer>(true))
                         renderer.sharedMaterials = Enumerable.Repeat(material, renderer.sharedMaterials.Length).ToArray();
-                    built += ConstrainBones(output.transform, avatar.transform, ghost.transform, true, damping / (i + 1));
+                    built += NxCloneAfterimageRig.Configure(avatar.transform, ghost.transform, damping / (i + 1));
                     ghost.SetActive(false);
                     ghosts.Add(ghost.transform);
                 }
@@ -491,6 +569,7 @@ namespace nxclone
                 window.independentCloneFx = setup.independentCloneFx;
                 window.deferParameterBudgetToVrcfury = setup.deferParameterBudgetToVrcfury;
                 window.runtimeScale = setup.runtimeScale;
+                window.runtimePosition = setup.runtimePosition;
                 window.recordingDuration = setup.recordingDuration;
                 window.recordingSamples = setup.recordingSamples;
                 window.posing = setup.posing;
@@ -507,6 +586,8 @@ namespace nxclone
                 window.afterimageCount = setup.afterimageCount;
                 window.damping = setup.damping;
                 window.afterimageColor = setup.afterimageColor;
+                window.distinctAfterimageColors = setup.distinctAfterimageColors;
+                window.afterimageColors = new List<Color>(setup.afterimageColors ?? new List<Color>());
                 RemovePreview(descriptor.transform);
                 EnsureFolder(OutputRoot);
                 string folder = AssetDatabase.GenerateUniqueAssetPath($"{OutputRoot}/{SafeName(descriptor.name)}-upload");
@@ -520,7 +601,7 @@ namespace nxclone
                     NxCloneBuildSource.Bake(source, folder);
                     slot.source = source.GetComponent<VRCAvatarDescriptor>();
                 }
-                var issues = Preflight(descriptor, window.slots, window.afterimages, window.worldDrop, window.poseFreeze, window.runtimeScale, window.recording, window.posing, window.deferParameterBudgetToVrcfury, window.wear, window.limbIk, window.limbContacts);
+                var issues = Preflight(descriptor, window.slots, window.afterimages, window.worldDrop, window.poseFreeze, window.runtimeScale, window.recording, window.posing, window.deferParameterBudgetToVrcfury, window.wear, window.limbIk, window.limbContacts, window.runtimePosition);
                 if (issues.Count != 0) throw new InvalidOperationException(string.Join("\n", issues));
                 window.BuildVisuals(descriptor, folder, true);
                 if (window.deferParameterBudgetToVrcfury)
@@ -728,6 +809,17 @@ namespace nxclone
                 AddBoolLayer(fx, $"nxclone {i + 1} placement", dropParameter, follow, placed);
                 dropParameters.Add(dropParameter);
             }
+            var positionControls = new List<NxClonePositionControls.Result>();
+            if (runtimePosition) for (int i = 0; i < clones.Count; i++)
+            {
+                var placement = clones[i].parent.GetComponent<VRCParentConstraint>().Sources[0].SourceTransform;
+                string prefix = $"nxclone_position_{i + 1}";
+                for (int suffix = 2; new[] { "x", "y", "z" }.Any(axis => AvailableParameter(descriptor, prefix + "_" + axis, reserved) != prefix + "_" + axis); suffix++)
+                    prefix = $"nxclone_position_{i + 1}_{suffix}";
+                var controls = NxClonePositionControls.Configure(fx, descriptor.transform, placement, folder, prefix);
+                foreach (var name in controls.Parameters) reserved.Add(name);
+                positionControls.Add(controls);
+            }
             string scaleParameter = null;
             if (runtimeScale)
             {
@@ -875,6 +967,7 @@ namespace nxclone
             var alwaysWriteDefaults = new HashSet<string>(contactAnchors.SelectMany(contact => contact.writeDefaultsOnLayers), StringComparer.Ordinal);
             var alwaysOffDefaults = new HashSet<string>(recordings.SelectMany(recording =>
                 new[] { recording.CaptureLayerName, recording.PlaybackLayerName, recording.CommandLayerName }).Concat(gestureLayers.Where(name => name != null)), StringComparer.Ordinal);
+            alwaysOffDefaults.UnionWith(positionControls.SelectMany(entry => entry.LayerNames));
             alwaysOffDefaults.UnionWith(expressionRecordings.SelectMany(entry => new[] { entry.CaptureLayerName, entry.PlaybackLayerName }));
             alwaysOffDefaults.UnionWith(fx.layers.Where(layer => layer.name.StartsWith("nxclone expression input copy ", StringComparison.Ordinal)).Select(layer => layer.name));
             alwaysOffDefaults.UnionWith(ikControls.SelectMany(ik => new[] { ik.LayerName, ik.SelectorLayerName }));
@@ -926,6 +1019,12 @@ namespace nxclone
                 addedParameters.Add(new VRCExpressionParameters.Parameter {
                     name = scaleParameter, valueType = VRCExpressionParameters.ValueType.Float, defaultValue = 0.5f, saved = true, networkSynced = true
                 });
+            foreach (var entry in positionControls)
+                foreach (var name in entry.Parameters)
+                    addedParameters.Add(new VRCExpressionParameters.Parameter {
+                        name = name, valueType = VRCExpressionParameters.ValueType.Float,
+                        defaultValue = 0.5f, saved = false, networkSynced = true
+                    });
             foreach (var entry in poseControls)
                 addedParameters.Add(new VRCExpressionParameters.Parameter {
                     name = entry.ParameterName, valueType = VRCExpressionParameters.ValueType.Bool, saved = false, networkSynced = true
@@ -993,6 +1092,10 @@ namespace nxclone
                     cloneMenu.controls.Add(new VRCExpressionsMenu.Control {
                         name = "Enabled", type = VRCExpressionsMenu.Control.ControlType.Toggle,
                         parameter = new VRCExpressionsMenu.Control.Parameter { name = cloneEnabledParameters[i] }, value = 1
+                    });
+                    if (i < positionControls.Count) cloneMenu.controls.Add(new VRCExpressionsMenu.Control {
+                        name = "Position", type = VRCExpressionsMenu.Control.ControlType.SubMenu,
+                        subMenu = positionControls[i].Menu
                     });
                     if (i < dropParameters.Count) cloneMenu.controls.Add(new VRCExpressionsMenu.Control {
                         name = "World drop", type = VRCExpressionsMenu.Control.ControlType.Toggle,

@@ -82,3 +82,12 @@ Native Play Mode checks need Unity's Play Mode runtime; do not use
 device. A direct `Animator.Update` or clip-sampling check does not prove native
 constraint movement. SDK stubs also cannot prove VRChat parameter-driver,
 layer-control or remote-contact behavior in a live avatar.
+
+## Placement and afterimage regression checks (0.3.1)
+
+- `NxClonePositionSmoke.Run`: native Play Mode neutral/XYZ endpoints on a rotated avatar, dropped driver stability during dial edits, and resume to the latest placement. Omit `-quit`; the test exits itself.
+- `NxCloneAfterimagePlacementSmoke.Run`: native scaled/rotated source and ghost rig registration, delayed ancestor translation/rotation, direct local scale and settled baked render shape. Omit `-quit`.
+- `NxCloneRenderSmoke.Run`: GPU flat silhouette, near-camera fade, distinct overlapping colours, explicit queue precedence and main-body priority with a physically closer ghost and late transparent main material. Requires graphics; run under hidden Gamescope on Linux.
+- `NxCloneUiSmoke.RunOnly`: keeps a 300 px Unity utility window open for visual inspection. On Linux, capture the actual X11 window (`import -window WINDOW_ID`), since root framebuffer and Unity screen-pixel reads can return black under headless Gamescope. This utility does not exit itself.
+
+The original avatar project is never modified by these isolated fixture checks.

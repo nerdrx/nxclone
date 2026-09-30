@@ -1,15 +1,17 @@
 # Feature coverage and validation
 
-Version 0.3.0 adds the previously missing native controls. This matrix distinguishes implementation from runtime proof; there is no claim of complete superiority over another product.
+Version 0.3.1 improves placement controls and afterimage rendering. Full feature parity is not established. This matrix distinguishes implementation from runtime proof; there is no claim of complete superiority over another product.
 
 ## Implemented
 
 | Feature | Validation |
 | :--- | :--- |
-| Root/bone/custom anchors, zero default offset, rotation offsets | Native SDK movement, rotation, hidden-driver and scale tests on Linux; sustained world-drop and resume tests with SDK 3.10.2 and 3.10.5. |
+| Root/bone/custom anchors, 1 m forward / 180° new-slot defaults, rotation offsets | Native SDK movement, rotation, hidden-driver and scale tests on Linux; sustained world-drop and resume tests with SDK 3.10.2 and 3.10.5. |
+| In-game XYZ position dials | Native rotated-avatar neutral/endpoints, world-drop hold during dial edits and resume to the latest placement pass. One nested blend tree keeps all three coordinates together. |
+| Afterimage rig registration | Native scaled/rotated rig render shape agrees at rest; animated armature translation/rotation follows with lag and returns to exact alignment. Local scale tracks directly to avoid feedback drift. The supplied avatar maps 178 render rig paths (534 constraints per ghost). |
 | Hidden spawn, master and individual visibility, afterimage toggle | Generated Animator controls and menu/parameter composition checks. |
 | VRCFury Armature Link | Full SDK preprocessing of an isolated copy of the supplied avatar, with six linked mesh/bone mappings checked. |
-| Flat afterimages and primary silhouette priority | Offscreen GPU render under headless Gamescope in 0.2.1; shaders are unchanged. Geometry silhouettes and reserved stencil bits remain the documented limits. |
+| Flat afterimages and primary silhouette priority | Offscreen GPU checks cover flat alpha, camera proximity fade, distinct overlapping colours and priority over physically nearer ghosts. Geometry silhouettes and reserved stencil bits remain the documented limits. |
 | Whole-body freeze and grabbable posing | Actual native solver ownership tests: source follow, posing, freeze and return to live. Synthetic tests do not simulate a VRChat hand grab. |
 | Body recording, hips and sampled root movement | Native capture, playback, stop and recapture tests. A durable synced take phase replaces a brief request pulse; capture stays in a non-looping clip tail so native freeze caches survive playback. Tests mirror SDK driver writes explicitly. |
 | Independent clone FX and transition lock | Native root/clone state independence, base-layer weight, copied clips/menus/drivers, numeric built-in aliases and source preservation tests. |
@@ -21,8 +23,17 @@ Version 0.3.0 adds the previously missing native controls. This matrix distingui
 | Menus, presets and handles | Existing controls preserved, full menus wrapped, generated menus paginated. Scene-object references must be reselected after loading presets. |
 | VRCFury parameter compression | Full SDK callback pipeline once: observer after nxclone saw an over-budget avatar; the real compressor unsynced five generated parameters and the final gate accepted exactly 256 bits. Separate 257-bit rejection test passes. |
 
+## Functional gaps from the original documented workflow
+
+- Final controls assemble during upload; there is no equivalent finished-avatar generation or apply-modular-systems switch in the editor.
+- The original configurable local limb attachment list with per-point bone, radius and offset is not implemented. Current posing and remote hand/foot contacts cover different interactions.
+- Sampled recording and optional expression snapshots differ from the original recording workflow.
+- There is one responsive editor layout, without separate simplified/full modes.
+- Login, purchase checks and commercial CloneID management are intentionally omitted as requested.
+
 ## Remaining validation and limits
 
+- The latest supplied-avatar full callback rerun is blocked by a legacy VRCFury `OriginalContactsHook` exception in the disposable fixture. Earlier Armature Link/compression gates and current native rig/control checks are separate evidence.
 - Live VRChat, multi-user contact tracking and Windows editor operation remain unverified.
 - FinalIK and VRChat parameter-driver/layer-control behavior cannot be inferred from SDK stub serialization alone.
 - Afterimage feedback delay varies with frame rate; it is not a fixed time delay.

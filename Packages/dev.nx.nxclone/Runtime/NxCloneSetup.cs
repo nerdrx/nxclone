@@ -19,8 +19,8 @@ namespace nxclone
         [Tooltip("Leave empty to use the avatar carrying this setup component.")]
         public VRCAvatarDescriptor source;
         public Transform anchor;
-        public Vector3 offset = Vector3.zero;
-        public Vector3 rotation = Vector3.zero;
+        public Vector3 offset = Vector3.forward;
+        public Vector3 rotation = new Vector3(0f, 180f, 0f);
         public Vector3 scale = Vector3.one;
         public bool mirror;
         public NxCloneAttachPoint attachTo;
@@ -43,6 +43,7 @@ namespace nxclone
         public bool independentCloneFx;
         public bool deferParameterBudgetToVrcfury;
         public bool runtimeScale;
+        public bool runtimePosition;
         public bool posing;
         public bool limbIk;
         public bool limbContacts;
@@ -57,6 +58,8 @@ namespace nxclone
         public bool afterimages;
         [Range(1, 4)] public int afterimageCount = 1;
         [Range(0.05f, 0.8f)] public float damping = 0.25f;
+        public bool distinctAfterimageColors = true;
+        public List<Color> afterimageColors = new List<Color>();
         public Color afterimageColor = new Color(0.25f, 0.8f, 1f, 0.3f);
         public string generatedFolder;
     }
