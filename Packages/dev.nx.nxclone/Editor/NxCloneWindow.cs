@@ -28,6 +28,7 @@ namespace nxclone
         bool deferParameterBudgetToVrcfury;
         bool runtimeScale;
         bool runtimePosition;
+        bool runtimeRotation;
         bool posing;
         bool limbIk;
         bool limbContacts;
@@ -117,6 +118,7 @@ namespace nxclone
             else if (deferParameterBudgetToVrcfury)
                 EditorGUILayout.HelpBox("VRCFury compresses the completed avatar FX and expression parameters after nxclone builds. Upload is stopped if the final synced cost still exceeds 256 bits.", MessageType.Info);
             runtimePosition = Toggle("In-game position dials (24 bits per clone)", runtimePosition);
+            runtimeRotation = Toggle("In-game rotation dials (24 bits per clone)", runtimeRotation);
             runtimeScale = Toggle("In-game scale dial", runtimeScale);
             posing = Toggle("Grabbable limb posing", posing);
             limbIk = Toggle("Limb IK controls", limbIk);
@@ -168,7 +170,7 @@ namespace nxclone
                     EditorGUILayout.HelpBox($"Up to {estimated} new constraints. VRChat rates PC avatars above 350 constraints Very Poor; review performance before upload.", MessageType.Warning);
             }
             EditorGUILayout.Space();
-            var issues = Preflight(avatar, slots, afterimages, worldDrop, poseFreeze, runtimeScale, recording, posing, deferParameterBudgetToVrcfury, wear, limbIk, limbContacts, runtimePosition);
+            var issues = Preflight(avatar, slots, afterimages, worldDrop, poseFreeze, runtimeScale, recording, posing, deferParameterBudgetToVrcfury, wear, limbIk, limbContacts, runtimePosition, runtimeRotation);
             EditorGUILayout.LabelField("Avatar check", EditorStyles.boldLabel);
             foreach (var issue in issues) EditorGUILayout.HelpBox(issue, MessageType.Error);
             if (issues.Count == 0 && avatar)
@@ -239,6 +241,7 @@ namespace nxclone
             deferParameterBudgetToVrcfury = preset.deferParameterBudgetToVrcfury;
             runtimeScale = preset.runtimeScale;
             runtimePosition = preset.runtimePosition;
+            runtimeRotation = preset.runtimeRotation;
             recordingDuration = preset.recordingDuration;
             recordingSamples = preset.recordingSamples;
             posing = preset.posing;
@@ -279,6 +282,7 @@ namespace nxclone
             preset.deferParameterBudgetToVrcfury = deferParameterBudgetToVrcfury;
             preset.runtimeScale = runtimeScale;
             preset.runtimePosition = runtimePosition;
+            preset.runtimeRotation = runtimeRotation;
             preset.recordingDuration = recordingDuration;
             preset.recordingSamples = recordingSamples;
             preset.posing = posing;
@@ -304,7 +308,7 @@ namespace nxclone
 
         int EffectiveRecordingSamples() => Mathf.Min(recordingSamples, RecordingSampleLimit());
 
-        static List<string> Preflight(VRCAvatarDescriptor root, List<NxCloneSlot> slots, bool ghosts, bool drop, bool freeze, bool scale, bool record = false, bool pose = false, bool deferParameterBudget = false, bool wearing = false, bool ik = false, bool remoteLimbs = false, bool positionControls = false)
+        static List<string> Preflight(VRCAvatarDescriptor root, List<NxCloneSlot> slots, bool ghosts, bool drop, bool freeze, bool scale, bool record = false, bool pose = false, bool deferParameterBudget = false, bool wearing = false, bool ik = false, bool remoteLimbs = false, bool positionControls = false, bool rotationControls = false)
         {
             var issues = new List<string>();
             if (!root) { issues.Add("Choose a scene avatar with a VRC Avatar Descriptor."); return issues; }
@@ -355,7 +359,7 @@ namespace nxclone
                 issues.Add("VRChat's default FX controller is missing. Reinstall or update the Avatars SDK package.");
             if (root.customExpressions)
             {
-                int needed = 1 + slots.Count + (ghosts ? 1 : 0) + (drop ? slots.Count : 0) + (freeze ? slots.Count : 0) + (scale ? 8 : 0) + (record ? 10 * slots.Count : 0) + (pose || ik ? slots.Count : 0) + (wearing ? 8 : 0) + (ik ? slots.Count : 0) + slots.Count(slot => slot.contactAnchor) + (ik && remoteLimbs ? 4 * slots.Count : 0) + (positionControls ? 24 * slots.Count : 0);
+                int needed = 1 + slots.Count + (ghosts ? 1 : 0) + (drop ? slots.Count : 0) + (freeze ? slots.Count : 0) + (scale ? 8 : 0) + (record ? 10 * slots.Count : 0) + (pose || ik ? slots.Count : 0) + (wearing ? 8 : 0) + (ik ? slots.Count : 0) + slots.Count(slot => slot.contactAnchor) + (ik && remoteLimbs ? 4 * slots.Count : 0) + (positionControls ? 24 * slots.Count : 0) + (rotationControls ? 24 * slots.Count : 0);
                 if (!canDeferParameterBudget && root.expressionParameters && root.expressionParameters.CalcTotalCost() + needed > VRCExpressionParameters.MAX_PARAMETER_COST)
                     issues.Add($"Expression Parameters need {needed} free bits for nxclone controls.");
 
@@ -398,7 +402,7 @@ namespace nxclone
 
         void Generate()
         {
-            var issues = Preflight(avatar, slots, afterimages, worldDrop, poseFreeze, runtimeScale, recording, posing, deferParameterBudgetToVrcfury, wear, limbIk, limbContacts, runtimePosition);
+            var issues = Preflight(avatar, slots, afterimages, worldDrop, poseFreeze, runtimeScale, recording, posing, deferParameterBudgetToVrcfury, wear, limbIk, limbContacts, runtimePosition, runtimeRotation);
             if (issues.Count > 0) { EditorUtility.DisplayDialog("nxclone check", string.Join("\n", issues), "OK"); return; }
             GameObject output = null;
             string folder = null;
@@ -439,6 +443,7 @@ namespace nxclone
                 setup.deferParameterBudgetToVrcfury = deferParameterBudgetToVrcfury;
                 setup.runtimeScale = runtimeScale;
                 setup.runtimePosition = runtimePosition;
+                setup.runtimeRotation = runtimeRotation;
                 setup.recordingDuration = recordingDuration;
                 setup.recordingSamples = EffectiveRecordingSamples();
                 setup.posing = posing;
@@ -570,6 +575,7 @@ namespace nxclone
                 window.deferParameterBudgetToVrcfury = setup.deferParameterBudgetToVrcfury;
                 window.runtimeScale = setup.runtimeScale;
                 window.runtimePosition = setup.runtimePosition;
+                window.runtimeRotation = setup.runtimeRotation;
                 window.recordingDuration = setup.recordingDuration;
                 window.recordingSamples = setup.recordingSamples;
                 window.posing = setup.posing;
@@ -601,7 +607,7 @@ namespace nxclone
                     NxCloneBuildSource.Bake(source, folder);
                     slot.source = source.GetComponent<VRCAvatarDescriptor>();
                 }
-                var issues = Preflight(descriptor, window.slots, window.afterimages, window.worldDrop, window.poseFreeze, window.runtimeScale, window.recording, window.posing, window.deferParameterBudgetToVrcfury, window.wear, window.limbIk, window.limbContacts, window.runtimePosition);
+                var issues = Preflight(descriptor, window.slots, window.afterimages, window.worldDrop, window.poseFreeze, window.runtimeScale, window.recording, window.posing, window.deferParameterBudgetToVrcfury, window.wear, window.limbIk, window.limbContacts, window.runtimePosition, window.runtimeRotation);
                 if (issues.Count != 0) throw new InvalidOperationException(string.Join("\n", issues));
                 window.BuildVisuals(descriptor, folder, true);
                 if (window.deferParameterBudgetToVrcfury)
@@ -820,6 +826,16 @@ namespace nxclone
                 foreach (var name in controls.Parameters) reserved.Add(name);
                 positionControls.Add(controls);
             }
+            var rotationControls = new List<NxCloneRotationControls.Result>();
+            if (runtimeRotation) for (int i = 0; i < clones.Count; i++)
+            {
+                string prefix = $"nxclone_rotation_{i + 1}";
+                for (int suffix = 2; new[] { "x", "y", "z" }.Any(axis => AvailableParameter(descriptor, prefix + "_" + axis, reserved) != prefix + "_" + axis); suffix++)
+                    prefix = $"nxclone_rotation_{i + 1}_{suffix}";
+                var controls = NxCloneRotationControls.Configure(fx, descriptor.transform, clones[i].parent, folder, prefix);
+                foreach (var name in controls.Parameters) reserved.Add(name);
+                rotationControls.Add(controls);
+            }
             string scaleParameter = null;
             if (runtimeScale)
             {
@@ -968,6 +984,7 @@ namespace nxclone
             var alwaysOffDefaults = new HashSet<string>(recordings.SelectMany(recording =>
                 new[] { recording.CaptureLayerName, recording.PlaybackLayerName, recording.CommandLayerName }).Concat(gestureLayers.Where(name => name != null)), StringComparer.Ordinal);
             alwaysOffDefaults.UnionWith(positionControls.SelectMany(entry => entry.LayerNames));
+            alwaysOffDefaults.UnionWith(rotationControls.SelectMany(entry => entry.LayerNames));
             alwaysOffDefaults.UnionWith(expressionRecordings.SelectMany(entry => new[] { entry.CaptureLayerName, entry.PlaybackLayerName }));
             alwaysOffDefaults.UnionWith(fx.layers.Where(layer => layer.name.StartsWith("nxclone expression input copy ", StringComparison.Ordinal)).Select(layer => layer.name));
             alwaysOffDefaults.UnionWith(ikControls.SelectMany(ik => new[] { ik.LayerName, ik.SelectorLayerName }));
@@ -1019,8 +1036,8 @@ namespace nxclone
                 addedParameters.Add(new VRCExpressionParameters.Parameter {
                     name = scaleParameter, valueType = VRCExpressionParameters.ValueType.Float, defaultValue = 0.5f, saved = true, networkSynced = true
                 });
-            foreach (var entry in positionControls)
-                foreach (var name in entry.Parameters)
+            foreach (var entry in positionControls.Select(entry => entry.Parameters).Concat(rotationControls.Select(entry => entry.Parameters)))
+                foreach (var name in entry)
                     addedParameters.Add(new VRCExpressionParameters.Parameter {
                         name = name, valueType = VRCExpressionParameters.ValueType.Float,
                         defaultValue = 0.5f, saved = false, networkSynced = true
@@ -1096,6 +1113,10 @@ namespace nxclone
                     if (i < positionControls.Count) cloneMenu.controls.Add(new VRCExpressionsMenu.Control {
                         name = "Position", type = VRCExpressionsMenu.Control.ControlType.SubMenu,
                         subMenu = positionControls[i].Menu
+                    });
+                    if (i < rotationControls.Count) cloneMenu.controls.Add(new VRCExpressionsMenu.Control {
+                        name = "Rotation", type = VRCExpressionsMenu.Control.ControlType.SubMenu,
+                        subMenu = rotationControls[i].Menu
                     });
                     if (i < dropParameters.Count) cloneMenu.controls.Add(new VRCExpressionsMenu.Control {
                         name = "World drop", type = VRCExpressionsMenu.Control.ControlType.Toggle,

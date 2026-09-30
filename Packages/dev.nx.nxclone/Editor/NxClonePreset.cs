@@ -36,6 +36,7 @@ namespace nxclone
         public bool deferParameterBudgetToVrcfury;
         public bool runtimeScale;
         public bool runtimePosition;
+        public bool runtimeRotation;
         public bool posing;
         public bool limbIk;
         public bool limbContacts;

@@ -131,6 +131,24 @@
           "dependencies": {},
           "url": "https://github.com/nerdrx/nxclone/releases/download/v0.3.1/dev.nx.nxclone-0.3.1.zip",
           "zipSHA256": "f8cb6fa3d5ab5dc44508da7f83b8db86273840aa808199646f7af515d45e10c4"
+        },
+        "0.3.2": {
+          "name": "dev.nx.nxclone",
+          "version": "0.3.2",
+          "displayName": "nxclone",
+          "description": "Local, source-first VRChat avatar clone and afterimage builder.",
+          "unity": "2022.3",
+          "author": {
+            "name": "NX",
+            "email": "nerdrx@users.noreply.github.com"
+          },
+          "license": "MIT",
+          "vpmDependencies": {
+            "com.vrchat.avatars": ">=3.10.2"
+          },
+          "dependencies": {},
+          "url": "https://github.com/nerdrx/nxclone/releases/download/v0.3.2/dev.nx.nxclone-0.3.2.zip",
+          "zipSHA256": "a4c25b072cb849cd1a454a3b815a71ddf182ca905bcfffa56a4507ea7923326c"
         }
       }
     }

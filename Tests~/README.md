@@ -91,3 +91,5 @@ layer-control or remote-contact behavior in a live avatar.
 - `NxCloneUiSmoke.RunOnly`: keeps a 300 px Unity utility window open for visual inspection. On Linux, capture the actual X11 window (`import -window WINDOW_ID`), since root framebuffer and Unity screen-pixel reads can return black under headless Gamescope. This utility does not exit itself.
 
 The original avatar project is never modified by these isolated fixture checks.
+
+- `NxCloneRotationSmoke.Run`: native neutral, signed rotation, combined local axes, retained base orientation/position, world-drop hold and resume. Run under hidden Gamescope; omit `-quit` because the fixture exits itself.

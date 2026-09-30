@@ -117,7 +117,7 @@ public static class NxCloneOptionsSmoke
                 new NxCloneSlot { contactAnchor = true, contactTag = "HandL", contactAllowOthers = true },
                 new NxCloneSlot()
             });
-            foreach (var option in new[] { "worldDrop", "poseFreeze", "posing", "recording", "limbIk", "limbContacts", "wear", "afterimages", "runtimeScale", "runtimePosition", "independentCloneFx" })
+            foreach (var option in new[] { "worldDrop", "poseFreeze", "posing", "recording", "limbIk", "limbContacts", "wear", "afterimages", "runtimeScale", "runtimePosition", "runtimeRotation", "independentCloneFx" })
                 Set(window, option, true);
             Set(window, "writeDefaults", NxCloneWriteDefaults.On);
             Set(window, "afterimageCount", 2);
@@ -159,6 +159,12 @@ public static class NxCloneOptionsSmoke
                     $"clone {i} should expose three neutral, synced, unsaved position dials");
                 Assert(layers.Where(layer => layer.name.Contains($"nxclone_position_{i} position")).SelectMany(layer => layer.stateMachine.states).All(entry => !entry.state.writeDefaultValues),
                     "position dials must keep Write Defaults off even when other generated layers use it");
+                var rotationParameters = expressionParameters.Where(parameter => parameter.name.StartsWith($"nxclone_rotation_{i}_", StringComparison.Ordinal)).ToArray();
+                Assert(rotationParameters.Length == 3 && rotationParameters.All(parameter => parameter.valueType == VRCExpressionParameters.ValueType.Float && parameter.defaultValue == 0.5f && parameter.networkSynced && !parameter.saved),
+                    $"clone {i} should expose three neutral, synced, unsaved rotation dials");
+                var rotationLayers = layers.Where(layer => layer.name.Contains($"nxclone_rotation_{i} rotation")).ToArray();
+                Assert(rotationLayers.Length == 3 && rotationLayers.SelectMany(layer => layer.stateMachine.states).All(entry => !entry.state.writeDefaultValues),
+                    "all rotation dials must keep Write Defaults off even when other generated layers use it");
                 Assert(layers.Any(layer => layer.name == $"nxclone_pose_{i} pose recording") &&
                        layers.Any(layer => layer.name == $"nxclone_expression_{i} expression capture") &&
                        layers.Any(layer => layer.name == $"nxclone_expression_{i} expression playback"),

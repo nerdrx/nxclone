@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <code>0.3.1 preview</code> &nbsp; <code>Unity 2022.3</code> &nbsp; <code>PC VRChat</code> &nbsp; <code>VPM</code>
+  <code>0.3.2 preview</code> &nbsp; <code>Unity 2022.3</code> &nbsp; <code>PC VRChat</code> &nbsp; <code>VPM</code>
 </p>
 
 nxclone is a source-first editor helper for VRChat avatar clones. It checks avatar requirements before generating a scene copy with optional translucent afterimages and independent FX toggles assembled during upload. It does not ask you to log in or contact a license server.
@@ -11,11 +11,11 @@ nxclone is a source-first editor helper for VRChat avatar clones. It checks avat
 <h2 align="center"><a href="https://nerdrx.github.io/nxclone/#install">Install nxclone</a></h2>
 <p align="center">
   ALCOM / Creator Companion<br /><br />
-  <a href="https://github.com/nerdrx/nxclone/releases/tag/v0.3.1">Download preview</a> &nbsp;·&nbsp;
+  <a href="https://github.com/nerdrx/nxclone/releases/tag/v0.3.2">Download preview</a> &nbsp;·&nbsp;
   <a href="docs/INSTALL.md">Installation help</a>
 </p>
 
-Add the nxclone repository, then install **nxclone** in your avatar project. The current preview is **0.3.1**.
+Add the nxclone repository, then install **nxclone** in your avatar project. The current preview is **0.3.2**.
 
 <details><summary>Manual VPM repository URL</summary>
 
@@ -33,7 +33,7 @@ https://nerdrx.github.io/nxclone/index.json
 | :--- | :--- |
 | Clone layout | Up to four sources, root/bone/custom anchors, position and rotation offsets, scale, mirror, presets and scene handles. Empty source and anchor fields use the avatar root. |
 | Visibility | Clones start hidden. Master visibility, individual enable switches and afterimages have separate controls. |
-| Placement | Unity position/rotation fields and scene handles; optional in-game XYZ dials. World drop holds position, rotation and scale; turning it off resumes the selected anchor. |
+| Placement | Unity position/rotation fields and scene handles; optional in-game XYZ position and pitch/yaw/roll rotation dials. World drop holds position, rotation and scale; turning it off resumes the selected anchor. |
 | Pose | Whole-body freeze, grabbable limbs, optional limb IK and remote hand/foot contact attachment. |
 | Recording | Sampled body, hips and world movement with record, replay and speed controls. Independent clone FX adds gesture/expression snapshots. |
 | Expressions | Visual FX mirroring, copied external controllers and menus, optional independent self-clone controllers and transition locks. Main-avatar built-ins remain read-only. |
@@ -59,6 +59,7 @@ Open **Tools → nxclone**, select the original avatar, configure options and ch
 | Afterimage visibility | 1 |
 | Scale dial | 8 |
 | Position dials | 24 per clone |
+| Rotation dials | 24 per clone |
 | Body record + replay + speed | 10 per clone |
 | Wear selector | 8 total |
 | Contact attachment | 1 per tracker; seven tracking inputs remain local |
@@ -68,7 +69,7 @@ Copied source-menu parameters and FX transition locks add their own cost. **Defe
 
 ## Behavior and compatibility
 
-- New clones default to 1 m forward from the avatar root, facing back toward it (180° yaw). Use **At anchor** for zero offset. Existing saved layouts retain their placement. Bone anchors apply offsets in the selected anchor's frame. Position dials adjust ±2 m per axis around the configured placement; 0.5 is neutral.
+- New clones default to 1 m forward from the avatar root, facing back toward it (180° yaw). Use **At anchor** for zero offset. Existing saved layouts retain their placement. Bone anchors apply offsets in the selected anchor's frame. Position dials adjust ±2 m per axis around the configured placement; 0.5 is neutral. Rotation dials add ±180° of pitch, yaw and roll to the configured orientation, in that order around successive local axes. Rotation does not change the configured placement position.
 - Afterimages follow the main avatar with zero placement offset. Each trail follows the full render rig, including armature ancestors. Newer trails blend over older ones; the primary silhouette masks every trail. Nearby fragments fade between 0.25 and 0.6 m from the camera. Afterimage lag uses constraint feedback, so it varies with frame rate. It is not a fixed millisecond delay.
 - Afterimages are geometry silhouettes: textures, cutout holes and material displacement are not reproduced. Stencil bits 0 through 4 are reserved; opaque scene depth still occludes them.
 - Independent FX requires transferable animation bindings. If a source clip animates a component removed from clone visuals, generation names the clip and track and explains how to disable or remove it.

@@ -21,6 +21,7 @@ public static class NxCloneUiSmoke
         window.ShowUtility();
         window.position = new Rect(60f, 60f, 300f, 850f);
         Set("runtimePosition", true);
+        Set("runtimeRotation", true);
         Set("afterimages", true);
         Set("afterimageCount", 4);
         frames = 0;
