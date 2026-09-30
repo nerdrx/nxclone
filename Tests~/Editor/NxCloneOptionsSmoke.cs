@@ -19,6 +19,21 @@ public static class NxCloneOptionsSmoke
     static readonly string[] Builtins = { "GestureLeft", "GestureRight", "GestureLeftWeight", "GestureRightWeight", "Viseme", "Voice" };
     static readonly string[] ReservedBuiltins = Builtins.Concat(new[] { "IsLocal" }).ToArray();
 
+    static bool defaultsOnly;
+
+    public static void RunSelected()
+    {
+        defaultsOnly = true;
+        try { Run(); }
+        finally { defaultsOnly = false; }
+    }
+
+    public static void RunBoth()
+    {
+        Run();
+        RunSelected();
+    }
+
     public static void Run()
     {
         Assert(new NxCloneSlot().offset == Vector3.forward && new NxCloneSetupSlot().offset == Vector3.forward,
@@ -119,6 +134,11 @@ public static class NxCloneOptionsSmoke
             });
             foreach (var option in new[] { "worldDrop", "poseFreeze", "posing", "recording", "limbIk", "limbContacts", "wear", "afterimages", "runtimeScale", "runtimePosition", "runtimeRotation", "independentCloneFx" })
                 Set(window, option, true);
+            if (!defaultsOnly)
+            {
+                Set(window, "positionAxes", NxCloneAxes.All);
+                Set(window, "rotationAxes", NxCloneAxes.All);
+            }
             Set(window, "writeDefaults", NxCloneWriteDefaults.On);
             Set(window, "afterimageCount", 2);
             Set(window, "recordingSamples", 15);
@@ -151,20 +171,32 @@ public static class NxCloneOptionsSmoke
                 "each ghost must deduplicate only its own silhouette and respect the primary mask");
             Assert(ghostMaterials[0].renderQueue > ghostMaterials[1].renderQueue,
                 "newest ghost must draw after older ghosts");
+            var exportedDials = expressionParameters.Where(parameter => parameter.name.StartsWith("nxclone_position_", StringComparison.Ordinal) || parameter.name.StartsWith("nxclone_rotation_", StringComparison.Ordinal)).ToArray();
+            Assert(exportedDials.Length * 8 == (defaultsOnly ? 32 : 96),
+                "two clones must pay only eight synced bits per selected axis");
             var layers = fx.layers;
             for (int i = 1; i <= 2; i++)
             {
                 var positionParameters = expressionParameters.Where(parameter => parameter.name.StartsWith($"nxclone_position_{i}_", StringComparison.Ordinal)).ToArray();
-                Assert(positionParameters.Length == 3 && positionParameters.All(parameter => parameter.valueType == VRCExpressionParameters.ValueType.Float && parameter.defaultValue == 0.5f && parameter.networkSynced && !parameter.saved),
-                    $"clone {i} should expose three neutral, synced, unsaved position dials");
+                Assert(positionParameters.Length == (defaultsOnly ? 1 : 3) && positionParameters.All(parameter => parameter.valueType == VRCExpressionParameters.ValueType.Float && parameter.defaultValue == 0.5f && parameter.networkSynced && !parameter.saved),
+                    $"clone {i} should expose only selected neutral, synced, unsaved position dials");
                 Assert(layers.Where(layer => layer.name.Contains($"nxclone_position_{i} position")).SelectMany(layer => layer.stateMachine.states).All(entry => !entry.state.writeDefaultValues),
                     "position dials must keep Write Defaults off even when other generated layers use it");
                 var rotationParameters = expressionParameters.Where(parameter => parameter.name.StartsWith($"nxclone_rotation_{i}_", StringComparison.Ordinal)).ToArray();
-                Assert(rotationParameters.Length == 3 && rotationParameters.All(parameter => parameter.valueType == VRCExpressionParameters.ValueType.Float && parameter.defaultValue == 0.5f && parameter.networkSynced && !parameter.saved),
-                    $"clone {i} should expose three neutral, synced, unsaved rotation dials");
+                Assert(rotationParameters.Length == (defaultsOnly ? 1 : 3) && rotationParameters.All(parameter => parameter.valueType == VRCExpressionParameters.ValueType.Float && parameter.defaultValue == 0.5f && parameter.networkSynced && !parameter.saved),
+                    $"clone {i} should expose only selected neutral, synced, unsaved rotation dials");
                 var rotationLayers = layers.Where(layer => layer.name.Contains($"nxclone_rotation_{i} rotation")).ToArray();
-                Assert(rotationLayers.Length == 3 && rotationLayers.SelectMany(layer => layer.stateMachine.states).All(entry => !entry.state.writeDefaultValues),
+                Assert(rotationLayers.Length == (defaultsOnly ? 1 : 3) && rotationLayers.SelectMany(layer => layer.stateMachine.states).All(entry => !entry.state.writeDefaultValues),
                     "all rotation dials must keep Write Defaults off even when other generated layers use it");
+                if (defaultsOnly)
+                {
+                    Assert(positionParameters[0].name == $"nxclone_position_{i}_z" && rotationParameters[0].name == $"nxclone_rotation_{i}_y",
+                        "default dial selection must be distance and yaw only");
+                    var controls = MenuTree(descriptor.expressionsMenu).SelectMany(item => item.controls ?? new List<VRCExpressionsMenu.Control>()).ToArray();
+                    Assert(controls.Any(control => control.name == "Distance" && control.subParameters != null && control.subParameters.Any(parameter => parameter.name == positionParameters[0].name)) &&
+                        controls.Any(control => control.name == "Yaw" && control.subParameters != null && control.subParameters.Any(parameter => parameter.name == rotationParameters[0].name)),
+                        "only the selected distance/yaw dials must be exported to menus");
+                }
                 Assert(layers.Any(layer => layer.name == $"nxclone_pose_{i} pose recording") &&
                        layers.Any(layer => layer.name == $"nxclone_expression_{i} expression capture") &&
                        layers.Any(layer => layer.name == $"nxclone_expression_{i} expression playback"),
@@ -307,7 +339,7 @@ public static class NxCloneOptionsSmoke
                 }
             }
             AssetDatabase.SaveAssets();
-            Debug.Log($"NXCLONE_OPTIONS_SMOKE_OK: 2 clones, {expressionParameters.Length} unique parameters, {contactToggleNames.Length} tracker bits, {sampleLimit} samples, {solvers.Length} IK targets");
+            Debug.Log($"{(defaultsOnly ? "NXCLONE_SELECTED_OPTIONS_SMOKE_OK" : "NXCLONE_OPTIONS_SMOKE_OK")}: 2 clones, {expressionParameters.Length} unique parameters, {contactToggleNames.Length} tracker bits, {sampleLimit} samples, {solvers.Length} IK targets");
         }
         finally
         {

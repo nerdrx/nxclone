@@ -93,3 +93,6 @@ layer-control or remote-contact behavior in a live avatar.
 The original avatar project is never modified by these isolated fixture checks.
 
 - `NxCloneRotationSmoke.Run`: native neutral, signed rotation, combined local axes, retained base orientation/position, world-drop hold and resume. Run under hidden Gamescope; omit `-quit` because the fixture exits itself.
+
+- `NxCloneOptionsSmoke.RunBoth`: checks integrated all-axis and default Distance/Yaw generation, menu pagination, exported axis parameters and 8-bit-per-axis costs.
+- `NxCloneAxisSelectionSmoke.Run`: checks all eight axis masks plus native Distance/Yaw movement, retained disabled coordinates and world-drop hold/resume. Use hidden Gamescope; omit `-quit`.

@@ -6,6 +6,9 @@ using VRC.SDK3.Avatars.Components;
 
 namespace nxclone
 {
+    [Flags]
+    public enum NxCloneAxes { None = 0, X = 1, Y = 2, Z = 4, All = X | Y | Z }
+
     public enum NxCloneWriteDefaults { Auto, Off, On }
 
     public enum NxCloneAttachPoint
@@ -44,7 +47,11 @@ namespace nxclone
         public bool deferParameterBudgetToVrcfury;
         public bool runtimeScale;
         public bool runtimePosition;
+        [Tooltip("X: left/right, Y: up/down, Z: forward/back distance.")]
+        public NxCloneAxes positionAxes = NxCloneAxes.Z;
         public bool runtimeRotation;
+        [Tooltip("X: pitch, Y: yaw, Z: roll.")]
+        public NxCloneAxes rotationAxes = NxCloneAxes.Y;
         public bool posing;
         public bool limbIk;
         public bool limbContacts;

@@ -1,14 +1,15 @@
 # Feature coverage and validation
 
-Version 0.3.2 adds in-game rotation controls to the existing position dials. Full feature parity is not established. This matrix distinguishes implementation from runtime proof; there is no claim of complete superiority over another product.
+Version 0.3.3 adds independent axis selection to position and rotation controls. Full feature parity is not established. This matrix distinguishes implementation from runtime proof; there is no claim of complete superiority over another product.
 
 ## Implemented
 
 | Feature | Validation |
 | :--- | :--- |
 | Root/bone/custom anchors, 1 m forward / 180° new-slot defaults, rotation offsets | Native SDK movement, rotation, hidden-driver and scale tests on Linux; sustained world-drop and resume tests with SDK 3.10.2 and 3.10.5. |
-| In-game XYZ position dials | Native rotated-avatar neutral/endpoints, world-drop hold during dial edits and resume to the latest placement pass. One nested blend tree keeps all three coordinates together. |
-| In-game pitch/yaw/roll rotation dials | Native signed quarter-turns, combined local axes, rotated/custom anchors, retained yaw-180 setup orientation, position dial coexistence and world-drop hold/resume pass. Three local carriers avoid competing quaternion animation layers; integrated menu/parameter and Write Defaults checks also pass. |
+| In-game XYZ position dials | Native rotated-avatar neutral/endpoints, world-drop hold during dial edits and resume to the latest placement pass. One nested blend tree keeps selected coordinates together and preserves disabled coordinates. |
+| In-game pitch/yaw/roll rotation dials | Native signed quarter-turns, combined local axes, rotated/custom anchors, retained yaw-180 setup orientation, position dial coexistence and world-drop hold/resume pass. Three local carriers avoid competing quaternion animation layers; integrated menu/parameter and Write Defaults checks also pass. Default axis selections are Distance (Z) and Yaw (Y), with 8 synced bits per enabled axis. |
+| Axis selection | All eight masks, empty-selection side effects, menus/parameter mappings, preserved disabled coordinates and default Distance/Yaw settings pass. Native selected Distance/Yaw movement and world-drop hold/resume pass; integrated default generation exports 16 synced bits per clone. |
 | Afterimage rig registration | Native scaled/rotated rig render shape agrees at rest; animated armature translation/rotation follows with lag and returns to exact alignment. Local scale tracks directly to avoid feedback drift. The supplied avatar maps 178 render rig paths (534 constraints per ghost). |
 | Hidden spawn, master and individual visibility, afterimage toggle | Generated Animator controls and menu/parameter composition checks. |
 | VRCFury Armature Link | Full SDK preprocessing of an isolated copy of the supplied avatar, with six linked mesh/bone mappings checked. |

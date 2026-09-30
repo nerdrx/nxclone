@@ -36,7 +36,9 @@ namespace nxclone
         public bool deferParameterBudgetToVrcfury;
         public bool runtimeScale;
         public bool runtimePosition;
+        public NxCloneAxes positionAxes = NxCloneAxes.Z;
         public bool runtimeRotation;
+        public NxCloneAxes rotationAxes = NxCloneAxes.Y;
         public bool posing;
         public bool limbIk;
         public bool limbContacts;

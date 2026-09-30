@@ -17,10 +17,10 @@ namespace nxclone
         }
 
         static readonly string[] Axes = { "x", "y", "z" };
-        static readonly string[] Labels = { "Left / Right", "Down / Up", "Back / Forward" };
+        static readonly string[] Labels = { "Left / Right", "Down / Up", "Distance" };
 
         public static Result Configure(AnimatorController fx, Transform avatarRoot, Transform anchor,
-            string folder, string prefix, float rangeMeters = 2f)
+            string folder, string prefix, float rangeMeters = 2f, NxCloneAxes enabledAxes = NxCloneAxes.All)
         {
             if (!fx || !avatarRoot || !anchor) throw new ArgumentNullException("FX, avatar root and anchor are required.");
             if (anchor == avatarRoot || !anchor.IsChildOf(avatarRoot))
@@ -32,12 +32,19 @@ namespace nxclone
                 throw new ArgumentOutOfRangeException(nameof(rangeMeters));
             if (string.IsNullOrEmpty(AssetDatabase.GetAssetPath(fx)))
                 throw new ArgumentException("FX controller must be a saved asset.", nameof(fx));
+            if ((enabledAxes & ~NxCloneAxes.All) != 0)
+                throw new ArgumentOutOfRangeException(nameof(enabledAxes));
+
+            int[] selectedAxes = Enumerable.Range(0, Axes.Length)
+                .Where(axis => (enabledAxes & (NxCloneAxes)(1 << axis)) != 0).ToArray();
+            if (selectedAxes.Length == 0)
+                return new Result { Parameters = Array.Empty<string>(), LayerNames = Array.Empty<string>(), Menu = null };
 
             var used = fx.parameters.Select(parameter => parameter.name).ToArray();
             string selectedPrefix = prefix.Trim();
-            for (int suffix = 2; Axes.Any(axis => used.Contains(selectedPrefix + "_" + axis, StringComparer.Ordinal)); suffix++)
+            for (int suffix = 2; selectedAxes.Any(index => used.Contains(selectedPrefix + "_" + Axes[index], StringComparer.Ordinal)); suffix++)
                 selectedPrefix = prefix.Trim() + "_" + suffix;
-            var parameters = Axes.Select(axis => selectedPrefix + "_" + axis).ToArray();
+            var parameters = selectedAxes.Select(index => selectedPrefix + "_" + Axes[index]).ToArray();
             var layerNames = new[] { $"nxclone {selectedPrefix} position" };
             string path = AnimationUtility.CalculateTransformPath(anchor, avatarRoot);
             string controllerPath = AssetDatabase.GetAssetPath(fx);
@@ -49,7 +56,7 @@ namespace nxclone
                 });
 
             Vector3 origin = anchor.localPosition;
-            var tree = BuildTree(fx, controllerPath, path, parameters, origin, rangeMeters, 0, "XYZ");
+            var tree = BuildTree(fx, controllerPath, path, parameters, selectedAxes, origin, rangeMeters, 0, "");
             var machine = new AnimatorStateMachine { name = layerNames[0] };
             AssetDatabase.AddObjectToAsset(machine, fx);
             var state = machine.AddState("Adjust clone position");
@@ -63,9 +70,9 @@ namespace nxclone
 
             var menu = ScriptableObject.CreateInstance<VRCExpressionsMenu>();
             menu.name = "nxclone placement dials";
-            menu.controls = Axes.Select((axis, i) => new VRCExpressionsMenu.Control
+            menu.controls = selectedAxes.Select((axis, i) => new VRCExpressionsMenu.Control
             {
-                name = Labels[i],
+                name = Labels[axis],
                 type = VRCExpressionsMenu.Control.ControlType.RadialPuppet,
                 subParameters = new[] { new VRCExpressionsMenu.Control.Parameter { name = parameters[i] } }
             }).ToList();
@@ -76,13 +83,14 @@ namespace nxclone
         }
 
         static BlendTree BuildTree(AnimatorController fx, string controllerPath, string path,
-            string[] parameters, Vector3 position, float range, int axis, string name)
+            string[] parameters, int[] selectedAxes, Vector3 position, float range, int depth, string name)
         {
+            int axis = selectedAxes[depth];
             var tree = new BlendTree
             {
-                name = "nxclone position " + name,
+                name = "nxclone position " + (name.Length == 0 ? Axes[axis] : name),
                 blendType = BlendTreeType.Simple1D,
-                blendParameter = parameters[axis],
+                blendParameter = parameters[depth],
                 useAutomaticThresholds = false,
                 minThreshold = 0f,
                 maxThreshold = 1f
@@ -93,9 +101,9 @@ namespace nxclone
             {
                 var endpointPosition = position;
                 endpointPosition[axis] += endpoint == 0 ? -range : range;
-                Motion motion = axis == Axes.Length - 1
+                Motion motion = depth == selectedAxes.Length - 1
                     ? NewClip(controllerPath, path, endpointPosition, name + (endpoint == 0 ? "-" : "+"))
-                    : BuildTree(fx, controllerPath, path, parameters, endpointPosition, range, axis + 1,
+                    : BuildTree(fx, controllerPath, path, parameters, selectedAxes, endpointPosition, range, depth + 1,
                         name + (endpoint == 0 ? "0" : "1"));
                 children[endpoint] = new ChildMotion { motion = motion, threshold = endpoint, timeScale = 1f };
             }

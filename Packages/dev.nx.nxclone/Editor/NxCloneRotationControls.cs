@@ -21,7 +21,7 @@ namespace nxclone
         static readonly string[] Labels = { "Pitch", "Yaw", "Roll" };
 
         public static Result Configure(AnimatorController fx, Transform avatarRoot, Transform driver,
-            string folder, string prefix)
+            string folder, string prefix, NxCloneAxes enabledAxes = NxCloneAxes.All)
         {
             if (!fx || !avatarRoot || !driver) throw new ArgumentNullException("FX, avatar root and driver are required.");
             if (driver == avatarRoot || !driver.IsChildOf(avatarRoot))
@@ -38,20 +38,28 @@ namespace nxclone
             Transform anchor = placement.Sources[0].SourceTransform;
             if (anchor == driver || anchor.IsChildOf(driver) || (anchor != avatarRoot && !anchor.IsChildOf(avatarRoot)))
                 throw new InvalidOperationException("Placement source 0 must be an avatar transform outside the driver hierarchy.");
+            if ((enabledAxes & ~NxCloneAxes.All) != 0)
+                throw new ArgumentOutOfRangeException(nameof(enabledAxes));
+
+            int[] selectedAxes = Enumerable.Range(0, Axes.Length)
+                .Where(axis => (enabledAxes & (NxCloneAxes)(1 << axis)) != 0).ToArray();
+            if (selectedAxes.Length == 0)
+                return new Result { Parameters = Array.Empty<string>(), LayerNames = Array.Empty<string>(), Menu = null };
 
             var used = fx.parameters.Select(parameter => parameter.name).ToArray();
             string selectedPrefix = prefix.Trim();
-            for (int suffix = 2; Axes.Any(axis => used.Contains(selectedPrefix + "_" + axis, StringComparer.Ordinal)); suffix++)
+            for (int suffix = 2; selectedAxes.Any(index => used.Contains(selectedPrefix + "_" + Axes[index], StringComparer.Ordinal)); suffix++)
                 selectedPrefix = prefix.Trim() + "_" + suffix;
-            var parameters = Axes.Select(axis => selectedPrefix + "_" + axis).ToArray();
-            var layerNames = Axes.Select((axis, i) => "nxclone " + selectedPrefix + " rotation " + Labels[i].ToLowerInvariant()).ToArray();
+            var parameters = selectedAxes.Select(index => selectedPrefix + "_" + Axes[index]).ToArray();
+            var layerNames = selectedAxes.Select(axis => "nxclone " + selectedPrefix + " rotation " + Labels[axis].ToLowerInvariant()).ToArray();
             string controllerPath = AssetDatabase.GetAssetPath(fx);
 
-            var carriers = new Transform[Axes.Length];
+            var carriers = new Transform[selectedAxes.Length];
             Transform parent = anchor;
-            for (int axis = 0; axis < Axes.Length; axis++)
+            for (int axis = 0; axis < selectedAxes.Length; axis++)
             {
-                var carrier = new GameObject("__nxclone rotation " + selectedPrefix + " " + Axes[axis]).transform;
+                int selectedAxis = selectedAxes[axis];
+                var carrier = new GameObject("__nxclone rotation " + selectedPrefix + " " + Axes[selectedAxis]).transform;
                 carrier.SetParent(parent, false);
                 carrier.localPosition = Vector3.zero;
                 carrier.localRotation = Quaternion.identity;
@@ -64,15 +72,16 @@ namespace nxclone
             placement.ApplyConfigurationChanges();
 
             string[] carrierPaths = carriers.Select(carrier => AnimationUtility.CalculateTransformPath(carrier, avatarRoot)).ToArray();
-            for (int axis = 0; axis < Axes.Length; axis++)
+            for (int axis = 0; axis < selectedAxes.Length; axis++)
             {
+                int selectedAxis = selectedAxes[axis];
                 fx.AddParameter(new AnimatorControllerParameter
                 {
                     name = parameters[axis], type = AnimatorControllerParameterType.Float, defaultFloat = 0.5f
                 });
                 var tree = new BlendTree
                 {
-                    name = "nxclone rotation " + Labels[axis].ToLowerInvariant(),
+                    name = "nxclone rotation " + Labels[selectedAxis].ToLowerInvariant(),
                     blendType = BlendTreeType.Simple1D,
                     blendParameter = parameters[axis],
                     useAutomaticThresholds = false,
@@ -80,15 +89,15 @@ namespace nxclone
                     maxThreshold = 1f,
                     children = new[]
                     {
-                        new ChildMotion { motion = NewClip(controllerPath, carrierPaths[axis], axis, -180f), threshold = 0f, timeScale = 1f },
-                        new ChildMotion { motion = NewClip(controllerPath, carrierPaths[axis], axis, 0f), threshold = 0.5f, timeScale = 1f },
-                        new ChildMotion { motion = NewClip(controllerPath, carrierPaths[axis], axis, 180f), threshold = 1f, timeScale = 1f }
+                        new ChildMotion { motion = NewClip(controllerPath, carrierPaths[axis], selectedAxis, -180f), threshold = 0f, timeScale = 1f },
+                        new ChildMotion { motion = NewClip(controllerPath, carrierPaths[axis], selectedAxis, 0f), threshold = 0.5f, timeScale = 1f },
+                        new ChildMotion { motion = NewClip(controllerPath, carrierPaths[axis], selectedAxis, 180f), threshold = 1f, timeScale = 1f }
                     }
                 };
                 AssetDatabase.AddObjectToAsset(tree, fx);
                 var machine = new AnimatorStateMachine { name = layerNames[axis] };
                 AssetDatabase.AddObjectToAsset(machine, fx);
-                var state = machine.AddState("Adjust clone " + Labels[axis].ToLowerInvariant());
+                var state = machine.AddState("Adjust clone " + Labels[selectedAxis].ToLowerInvariant());
                 state.motion = tree;
                 state.writeDefaultValues = false;
                 machine.defaultState = state;
@@ -97,9 +106,9 @@ namespace nxclone
 
             var menu = ScriptableObject.CreateInstance<VRCExpressionsMenu>();
             menu.name = "nxclone rotation dials";
-            menu.controls = Axes.Select((axis, i) => new VRCExpressionsMenu.Control
+            menu.controls = selectedAxes.Select((axis, i) => new VRCExpressionsMenu.Control
             {
-                name = Labels[i],
+                name = Labels[axis],
                 type = VRCExpressionsMenu.Control.ControlType.RadialPuppet,
                 subParameters = new[] { new VRCExpressionsMenu.Control.Parameter { name = parameters[i] } }
             }).ToList();
