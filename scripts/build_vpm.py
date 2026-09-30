@@ -21,12 +21,13 @@ with ZipFile(archive) as zip_file:
     assert json.loads(zip_file.read("package.json")) == manifest
 release_url = f"https://github.com/nerdrx/nxclone/releases/download/v{version}/{filename}"
 listing = dict(manifest, url=release_url, zipSHA256=hashlib.sha256(archive.read_bytes()).hexdigest())
-index = {
+index = json.loads((ROOT / "index.json").read_text()) if (ROOT / "index.json").exists() else {
     "name": "nxclone",
     "id": "dev.nx.nxclone",
     "url": "https://raw.githubusercontent.com/nerdrx/nxclone/main/index.json",
     "author": "nerdrx@users.noreply.github.com",
     "packages": {manifest["name"]: {"versions": {version: listing}}},
 }
+index["packages"][manifest["name"]]["versions"][version] = listing
 (ROOT / "index.json").write_text(json.dumps(index, indent=2) + "\n")
 print(archive)

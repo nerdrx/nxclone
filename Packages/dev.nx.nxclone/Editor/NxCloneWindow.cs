@@ -184,6 +184,9 @@ namespace nxclone
             var visual = Instantiate(source);
             visual.name = name;
             visual.transform.SetParent(parent, false);
+            visual.transform.localPosition = Vector3.zero;
+            visual.transform.localRotation = Quaternion.identity;
+            visual.transform.localScale = Vector3.one;
             foreach (var component in visual.GetComponentsInChildren<Component>(true))
             {
                 if (!component) continue;
