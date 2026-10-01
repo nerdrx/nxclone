@@ -1,86 +1,88 @@
 <p align="center">
-  <img src="docs/assets/nxclone-banner.svg" width="100%" alt="nxclone — avatar clones and translucent afterimages" />
+  <img src="docs/assets/nxclone-banner.svg" width="100%" alt="nxclone — create a clone, leave a trail" />
 </p>
 
 <p align="center">
-  <code>0.3.6 preview</code> &nbsp; <code>Unity 2022.3</code> &nbsp; <code>PC VRChat</code> &nbsp; <code>VPM</code>
+  <strong>Dance with a double. Leave a trail.</strong><br />
+  Avatar clones and standalone afterimages for PC VRChat.
 </p>
 
-nxclone is a source-first editor helper for VRChat avatar clones. It checks avatar requirements before generating a scene copy with clones or standalone translucent afterimages and independent FX toggles assembled during upload. It does not ask you to log in or contact a license server.
+<p align="center">
+  <code>0.3.6 preview</code> &nbsp; <code>Unity 2022.3</code> &nbsp; <code>VPM</code> &nbsp; <code>MIT</code>
+</p>
 
-<h2 align="center"><a href="https://nerdrx.github.io/nxclone/#install">Install nxclone</a></h2>
+<p align="center">
+  <a href="https://nerdrx.github.io/nxclone/#install"><img src="docs/assets/install-nxclone.svg" width="260" height="60" alt="Install nxclone" /></a>
+</p>
 <p align="center">
   ALCOM / Creator Companion<br /><br />
-  <a href="https://github.com/nerdrx/nxclone/releases/tag/v0.3.6">Download preview</a> &nbsp;·&nbsp;
-  <a href="docs/INSTALL.md">Installation help</a>
+  <a href="https://nerdrx.github.io/nxclone/">Website</a> &nbsp;·&nbsp;
+  <a href="https://github.com/nerdrx/nxclone/releases/tag/v0.3.6">Releases</a> &nbsp;·&nbsp;
+  <a href="docs/INSTALL.md">Install help</a> &nbsp;·&nbsp;
+  <a href="docs/PARITY.md">Validation & limits</a>
 </p>
 
-Add the nxclone repository, then install **nxclone** in your avatar project. The current preview is **0.3.6**.
+---
 
-<details><summary>Manual VPM repository URL</summary>
+nxclone builds a separate scene avatar with clone controls assembled during upload. Keep clothes, props and supported effects independent, choose only the placement axes you need, or add afterimages without a clone. No login or license server.
+
+## Features
+
+| | What you can do |
+| :--- | :--- |
+| **Dance partner** | Copy steps in the clone’s own facing direction and turn in place. New clones start 1 m ahead, facing you. |
+| **Independent toggles** | Give each clone an **Avatar toggles** menu for clothes, props and supported effects. GoGo Loco stays on your main avatar. |
+| **Placement** | Up to four clones, root/bone/custom anchors, Unity position and rotation controls, scale and mirroring. In-game dials let you select axes; Distance and Yaw are the default selections. |
+| **Pose & record** | Freeze, grabbable limb posing, optional IK, sampled pose/movement playback and wearing a clone. |
+| **World & contacts** | Drop a clone into world space or attach through hand/foot contacts. Copied contact receiver outputs use separate clone parameters. |
+| **Afterimages** | Standalone flat silhouettes, individual colours, camera proximity fade, primary-avatar masking and a separate toggle. |
+| **Setup** | Automatic missing FX/menu/parameter assets, paginated menus, presets, scene handles and optional VRCFury parameter compression. |
+
+[Control costs and detailed behavior →](docs/USAGE.md)
+
+## Install
+
+1. Click **Install nxclone** above and add the VPM repository to ALCOM or Creator Companion.
+2. Add **nxclone** to your avatar project.
+3. Open **Tools → nxclone**, select your original avatar and review the automatic check.
+4. Configure clones or choose **Afterimages only**, then **Generate scene copy**.
+
+Clones start hidden. Their final visuals and menus assemble during SDK preprocessing after VRCFury Armature Link. **After updating, regenerate from your original avatar.** Existing uploaded avatars do not update automatically.
+
+<details>
+<summary>Manual VPM repository URL</summary>
 
 ```text
 https://nerdrx.github.io/nxclone/index.json
 ```
 
+On Linux, paste this URL into your VPM-compatible manager. The website’s VCC button requires a registered `vcc://` handler.
+
 </details>
-
----
-
-## Features
-
-| Feature | Controls |
-| :--- | :--- |
-| Clone layout | Up to four sources, root/bone/custom anchors, position and rotation offsets, scale, mirror, presets and scene handles. Empty source and anchor fields use the avatar root. |
-| Visibility | Clones start hidden. Master visibility, individual enable switches and afterimages have separate controls. |
-| Placement | Unity position/rotation fields and scene handles; optional in-game XYZ position and pitch/yaw/roll rotation dials. World drop holds position, rotation and scale; turning it off resumes the selected anchor. |
-| Pose | Whole-body freeze, grabbable limbs, optional limb IK and remote hand/foot contact attachment. |
-| Recording | Sampled body, hips and world movement with record, replay and speed controls. Independent clone FX adds gesture/expression snapshots. |
-| Expressions | Visual FX mirroring, copied external controllers and menus, optional independent self-clone controllers and transition locks. Main-avatar built-ins remain read-only. |
-| Wear | Select one clone as the visible body, hide the original renderers, then return to the original FX controls. |
-| Afterimages | Flat transparent silhouettes with shared or per-afterimage colours, primary-body masking, camera proximity fade, independent toggle and optional gesture command. |
-| Setup | Missing FX/menu/parameter assets created on a scene copy. Full menus wrap and paginate. Optional VRCFury parameter compression with a final upload budget check. |
 
 ## Avatar requirements
 
-- Scene avatar with a VRC Avatar Descriptor, valid humanoid Animator and skinned meshes.
-- Each source needs a humanoid rig and mesh bones inside its hierarchy. Standard humanoid bones can map across differently named rigs. Unmatched accessory bones produce a warning.
-- Enough synced parameter space for selected controls; the check explains shortages. Missing expression assets are created automatically. Existing menu controls are preserved.
-- PC shader support for afterimages. A separate mobile shader would be needed for Quest.
+- Unity 2022.3 and VRChat Avatars SDK **3.10.2+**.
+- A scene avatar with a VRC Avatar Descriptor, a valid humanoid Animator and skinned meshes.
+- Source mesh bones inside the source hierarchy. Unmatched accessory bones produce a warning.
+- Enough synced parameter space for selected controls. The final upload limit remains **256 bits**, including when VRCFury compression is enabled.
+- **PC avatar shaders** for afterimages. Quest/mobile afterimages are not supported by the current shader.
 
-Open **Tools → nxclone**, select the original avatar, configure options and choose **Generate scene copy**. Final extraction runs after VRCFury Armature Link during SDK preprocessing, then before VRCFury parameter compression. **Regenerate from the original avatar after updating an older nxclone version.** Existing uploaded avatars do not change automatically.
+Missing expression assets are created on the scene copy. Your original assets and menu controls remain intact. Unsupported animation tracks report the clip, path and component.
 
-## Control costs and limits
+## Preview status
 
-| Option | Synced bits |
-| :--- | ---: |
-| Master visibility | 1 |
-| Individual enable / world drop / freeze / posing / IK | 1 per selected control per clone |
-| Afterimage visibility | 1 |
-| Scale dial | 8 |
-| Position dials | 8 per enabled axis per clone |
-| Rotation dials | 8 per enabled axis per clone |
-| Body record + replay + speed | 10 per clone |
-| Wear selector | 8 total |
-| Contact attachment | 1 per tracker; seven tracking inputs remain local |
-| Gesture commands / expression snapshot buffers | 0 additional |
+| Checked | Evidence |
+| :--- | :--- |
+| **Linux Unity** | Native movement/drop, pose, playback, rendering and independent-toggle checks. |
+| **Supplied avatar** | SDK preprocessing through VRCFury passes; copied toggle menus and baked SPS curves retained. Final synced cost: **124/256 bits** for the tested setup. |
+| **Windows / live VRChat** | Still needs validation, including remote contact interaction and SDK runtime behaviors. |
+| **Full feature parity** | Not established. Physics/script components and some original workflows remain limited. |
 
-Copied source-menu parameters and FX transition locks add their own cost. **Defer parameter limit to VRCFury** requires VRCFury; upload is still rejected if the final cost exceeds 256 bits. Recording supports up to 15 samples, reduced to reserve sources for world contact attachment and wear. More samples, meshes and trackers increase avatar cost.
+[Full coverage matrix and reproducible checks →](docs/PARITY.md)
 
-## Behavior and compatibility
+## Source & support
 
-- **Independent clone toggles / expressions** gives each clone its own **Avatar toggles** submenu for clothing, props and supported effects. New setups enable it by default. **Exclude GoGo Loco from clone menus** removes its menu branch and exclusive network parameters, and disables its dedicated FX layers on the clone. The main avatar’s menu remains intact. Existing saved setups may need the independent option enabled manually.
-- **Afterimages only** removes all clone slots and enables the trails directly. You can also remove the last clone manually. The standalone **Afterimages** menu toggle costs one synced bit; clone-only controls are hidden and generate nothing. Empty layouts persist in presets and saved setup.
-- **Root movement: DancePartner** copies steps in the clone’s facing direction and turns it around its own root. With 180° yaw, your left becomes its left (your right). Hiding and showing captures a fresh starting point. Choose **Attached** for the previous root-relative following behavior; bone and custom anchors remain attached. Dance mode adds three constraints per clone and no expression parameters.
-- New clones default to 1 m forward from the avatar root, facing back toward it (180° yaw). Use **At anchor** for zero offset. Existing saved layouts retain their placement. Bone anchors apply offsets in the selected anchor's frame. Position dials adjust ±2 m per axis around the configured placement; 0.5 is neutral. Rotation dials add ±180° of pitch, yaw and roll to the configured orientation, in that order around successive local axes. Rotation does not change the configured placement position. Select the axes you need in each control group; the default selections are **Distance (Z)** and **Yaw (Y)**. Only enabled axes produce menus and synced parameters (16 bits per clone with those two defaults).
-- Afterimages follow the main avatar with zero placement offset. Each trail follows the full render rig, including armature ancestors. Newer trails blend over older ones; the primary silhouette masks every trail. Nearby fragments fade between 0.25 and 0.6 m from the camera. Afterimage lag uses constraint feedback, so it varies with frame rate. It is not a fixed millisecond delay.
-- Afterimages are geometry silhouettes: textures, cutout holes and material displacement are not reproduced. Stencil bits 0 through 4 are reserved; opaque scene depth still occludes them.
-- Independent FX requires transferable animation bindings. If a source clip animates a component removed from clone visuals, generation names the clip and track and explains how to disable or remove it.
-- Presets store settings; scene source and custom-anchor references must be reselected.
-- Remote contacts need avatar interaction permissions. Built-in body tags such as HandL and FootR are normally generated on humanoid avatars; custom tags require matching senders. [VRChat contact tags](https://creators.vrchat.com/common-components/contacts/built-in-contact-tags/).
+Independent editor code is MIT licensed. Bundled VRLabs Contact Tracker assets retain their MIT license. Purchased packages, vendor DLLs and avatar assets are excluded.
 
-## Validation
-
-Linux Unity 2022.3.22f1 tests cover native constraint movement/drop, pose ownership, capture/replay/recapture, menu composition, FX remapping and VRCFury preprocessing/compression. SDK stubs expose FinalIK, parameter-driver and layer-control serialization; their VRChat runtime behavior still needs an in-game check. Windows and live multi-user VRChat remain unverified. [Detailed checks and remaining limits](docs/PARITY.md).
-
-Editor code is independent and MIT licensed. Bundled VRLabs Contact Tracker assets retain their MIT license. Purchased packages, vendor DLLs and avatar assets are excluded from distribution. [Package manifest](Packages/dev.nx.nxclone/package.json) · [Report an issue](https://github.com/nerdrx/nxclone/issues).
+[Report a bug](https://github.com/nerdrx/nxclone/issues) · [Releases](https://github.com/nerdrx/nxclone/releases) · [Package manifest](Packages/dev.nx.nxclone/package.json) · [License](LICENSE)
