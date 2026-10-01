@@ -33,7 +33,8 @@ namespace nxclone
         public bool poseFreeze;
         public bool copyVisemes = true;
         public bool copyFxAnimations = true;
-        public bool independentCloneFx;
+        public bool independentCloneFx = true;
+        public bool excludeGoGoLoco = true;
         public bool deferParameterBudgetToVrcfury;
         public bool runtimeScale;
         public bool runtimePosition;

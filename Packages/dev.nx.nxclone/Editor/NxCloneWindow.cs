@@ -24,7 +24,8 @@ namespace nxclone
         bool poseFreeze;
         bool copyVisemes = true;
         bool copyFxAnimations = true;
-        bool independentCloneFx;
+        bool independentCloneFx = true;
+        bool excludeGoGoLoco = true;
         bool deferParameterBudgetToVrcfury;
         bool runtimeScale;
         bool runtimePosition;
@@ -121,7 +122,9 @@ namespace nxclone
             copyVisemes = Toggle("Copy visemes", copyVisemes);
             copyFxAnimations = Toggle("Copy expressions / FX", copyFxAnimations);
             if (slots.Count > 0) using (new EditorGUI.DisabledScope(!copyFxAnimations))
-                independentCloneFx = Toggle("Independent clone FX / expression recording", independentCloneFx);
+                independentCloneFx = Toggle("Independent clone toggles / expressions", independentCloneFx);
+            if (slots.Count > 0 && copyFxAnimations && independentCloneFx)
+                excludeGoGoLoco = Toggle("Exclude GoGo Loco from clone menus", excludeGoGoLoco);
             bool vrcfuryCompressorAvailable = HasVrcfuryParameterCompressor();
             using (new EditorGUI.DisabledScope(!vrcfuryCompressorAvailable))
                 deferParameterBudgetToVrcfury = Toggle("Defer parameter limit to VRCFury", deferParameterBudgetToVrcfury);
@@ -275,6 +278,7 @@ namespace nxclone
             copyVisemes = preset.copyVisemes;
             copyFxAnimations = preset.copyFxAnimations;
             independentCloneFx = preset.independentCloneFx;
+            excludeGoGoLoco = preset.excludeGoGoLoco;
             deferParameterBudgetToVrcfury = preset.deferParameterBudgetToVrcfury;
             runtimeScale = preset.runtimeScale;
             runtimePosition = preset.runtimePosition;
@@ -318,6 +322,7 @@ namespace nxclone
             preset.copyVisemes = copyVisemes;
             preset.copyFxAnimations = copyFxAnimations;
             preset.independentCloneFx = independentCloneFx;
+            preset.excludeGoGoLoco = excludeGoGoLoco;
             preset.deferParameterBudgetToVrcfury = deferParameterBudgetToVrcfury;
             preset.runtimeScale = runtimeScale;
             preset.runtimePosition = runtimePosition;
@@ -491,6 +496,7 @@ namespace nxclone
                 setup.copyVisemes = copyVisemes;
                 setup.copyFxAnimations = copyFxAnimations;
                 setup.independentCloneFx = independentCloneFx;
+                setup.excludeGoGoLoco = excludeGoGoLoco;
                 setup.deferParameterBudgetToVrcfury = deferParameterBudgetToVrcfury;
                 setup.runtimeScale = runtimeScale;
                 setup.runtimePosition = runtimePosition;
@@ -556,7 +562,7 @@ namespace nxclone
                 var driver = dance
                     ? NxClonePlacement.Dance(frame, anchor, $"placement-{i + 1}", slot.offset, slot.rotation)
                     : NxClonePlacement.Follow(frame, anchor, $"placement-{i + 1}", slot.offset, slot.rotation);
-                var clone = BuildVisual(source.gameObject, driver, $"clone-{i + 1}");
+                var clone = BuildVisual(source.gameObject, driver, $"clone-{i + 1}", true, copyFxAnimations && (independentCloneFx || source != avatar));
                 clone.transform.localScale = Vector3.Scale(slot.scale, new Vector3(slot.mirror ? -1f : 1f, 1f, 1f));
                 built += ConstrainBones(output.transform, source.transform, clone.transform, false, 1f);
                 clone.SetActive(false);
@@ -628,6 +634,7 @@ namespace nxclone
                 window.copyVisemes = setup.copyVisemes;
                 window.copyFxAnimations = setup.copyFxAnimations;
                 window.independentCloneFx = setup.independentCloneFx;
+                window.excludeGoGoLoco = setup.excludeGoGoLoco;
                 window.deferParameterBudgetToVrcfury = setup.deferParameterBudgetToVrcfury;
                 window.runtimeScale = setup.runtimeScale;
                 window.runtimePosition = setup.runtimePosition;
@@ -680,7 +687,7 @@ namespace nxclone
             }
         }
 
-        static GameObject BuildVisual(GameObject source, Transform parent, string name)
+        static GameObject BuildVisual(GameObject source, Transform parent, string name, bool preserveEffects = false, bool preserveContacts = false)
         {
             GameObject visual;
             var generatedGroup = source.transform.Find("nxclone");
@@ -700,10 +707,16 @@ namespace nxclone
             visual.transform.localPosition = Vector3.zero;
             visual.transform.localRotation = Quaternion.identity;
             visual.transform.localScale = Vector3.one;
+            if (!preserveEffects)
+                foreach (var renderer in visual.GetComponentsInChildren<ParticleSystemRenderer>(true)) DestroyImmediate(renderer);
             foreach (var component in visual.GetComponentsInChildren<Component>(true))
             {
                 if (!component) continue;
-                if (component is Transform || component is Renderer || component is MeshFilter) continue;
+                if (component is Transform || component is Renderer || component is MeshFilter ||
+                    preserveEffects && (component is ParticleSystem || component is Light || component is AudioSource || component is Cloth ||
+                    component.GetType().FullName == "VRC.SDK3.Avatars.Components.VRCSpatialAudioSource") ||
+                    preserveContacts && component.GetType().FullName is
+                        ("VRC.SDK3.Dynamics.Contact.Components.VRCContactReceiver" or "VRC.SDK3.Dynamics.Contact.Components.VRCContactSender")) continue;
                 DestroyImmediate(component);
             }
             return visual;
@@ -810,10 +823,26 @@ namespace nxclone
                 budget.parameters = (descriptor.expressionParameters && descriptor.expressionParameters.parameters != null ? descriptor.expressionParameters.parameters : Array.Empty<VRCExpressionParameters.Parameter>())
                     .Concat(sourceParameters).ToArray();
                 NxCloneSourceFx.Result merged;
-                try { merged = NxCloneSourceFx.Merge(fx, sourceController, source.transform, descriptor.transform,
-                    clones[i], i + 1, source.expressionParameters, source.expressionsMenu, budget, folder,
-                    deferParameterBudgetCheck: deferParameterBudgetToVrcfury, isolateExpressionInputs: independentCloneFx); }
-                finally { DestroyImmediate(budget); }
+                using (var filteredMenu = excludeGoGoLoco ? NxCloneMenuFilter.CreateFilteredCopy(source.expressionsMenu) : null)
+                {
+                    var cloneParameters = source.expressionParameters;
+                    VRCExpressionParameters filteredParameters = null;
+                    if (filteredMenu != null && cloneParameters)
+                    {
+                        filteredParameters = Instantiate(cloneParameters);
+                        filteredParameters.parameters = (cloneParameters.parameters ?? Array.Empty<VRCExpressionParameters.Parameter>())
+                            .Where(entry => !filteredMenu.ExcludedParameters.Contains(entry.name)).ToArray();
+                        cloneParameters = filteredParameters;
+                    }
+                    try { merged = NxCloneSourceFx.Merge(fx, sourceController, source.transform, descriptor.transform,
+                        clones[i], i + 1, cloneParameters, filteredMenu != null ? filteredMenu.Menu : source.expressionsMenu, budget, folder,
+                        deferParameterBudgetCheck: deferParameterBudgetToVrcfury, isolateExpressionInputs: independentCloneFx, excludeGoGoLoco: excludeGoGoLoco); }
+                    finally
+                    {
+                        if (filteredParameters) DestroyImmediate(filteredParameters);
+                        DestroyImmediate(budget);
+                    }
+                }
                 sourceFxResults[i] = merged;
                 sourceParameters.AddRange(merged.parameters);
                 if (merged.menu) sourceControls.Add(new VRCExpressionsMenu.Control {
@@ -1235,7 +1264,7 @@ namespace nxclone
                     });
                     var expressionControl = sourceControls.FirstOrDefault(control => control.name == $"Clone {i + 1} expressions");
                     if (expressionControl != null) cloneMenu.controls.Add(new VRCExpressionsMenu.Control {
-                        name = "Expressions", type = VRCExpressionsMenu.Control.ControlType.SubMenu, subMenu = expressionControl.subMenu
+                        name = "Avatar toggles", type = VRCExpressionsMenu.Control.ControlType.SubMenu, subMenu = expressionControl.subMenu
                     });
                     Paginate(cloneMenu, folder);
                     AssetDatabase.CreateAsset(cloneMenu, $"{folder}/clone-{i + 1}-controls.asset");

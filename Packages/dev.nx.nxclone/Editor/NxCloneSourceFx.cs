@@ -56,7 +56,8 @@ namespace nxclone
             string generatedFolder,
             bool includeStateLock = true,
             bool deferParameterBudgetCheck = false,
-            bool isolateExpressionInputs = false)
+            bool isolateExpressionInputs = false,
+            bool excludeGoGoLoco = false)
         {
             if (!targetFx || !sourceFx || !sourceRoot || !targetAvatarRoot || !cloneRoot)
                 throw new ArgumentNullException("FX merge requires both controllers and all three avatar roots.");
@@ -108,6 +109,21 @@ namespace nxclone
                 AssetDatabase.ImportAsset(copiedPath, ImportAssetOptions.ForceUpdate);
                 sourceCopy = AssetDatabase.LoadAssetAtPath<AnimatorController>(copiedPath);
                 if (!sourceCopy) throw new InvalidOperationException("Copied source FX controller could not be loaded.");
+                var filteredLayers = sourceCopy.layers;
+                if (excludeGoGoLoco) for (int i = 0; i < filteredLayers.Length; i++)
+                {
+                    var layer = filteredLayers[i];
+                    string name = System.Text.RegularExpressions.Regex.Replace(layer.name, @"^\[VF\d+\]\s*", "");
+                    if (!name.StartsWith("Go/", StringComparison.Ordinal) && !NxCloneMenuFilter.IsGoGoLocoName(name)) continue;
+                    // Empty placeholders preserve layer-control and synced-layer indices.
+                    var empty = new AnimatorStateMachine { name = "nxclone excluded GoGo Loco" };
+                    AssetDatabase.AddObjectToAsset(empty, sourceCopy);
+                    layer.stateMachine = empty;
+                    layer.defaultWeight = 0f;
+                    layer.syncedLayerIndex = -1;
+                    filteredLayers[i] = layer;
+                }
+                sourceCopy.layers = filteredLayers;
                 int sourceLayerCount = sourceCopy.layers.Length;
                 int firstCloneLayer = targetFx.layers.Length;
 
@@ -160,9 +176,10 @@ namespace nxclone
                         {
                             name = $"nxclone {cloneIndex} {layer.name}",
                             stateMachine = layer.stateMachine,
-                            avatarMask = layer.avatarMask,
+                            avatarMask = CopyMask(layer.avatarMask, targetAvatarRoot, cloneRoot, generatedFolder, generatedAssets),
                             blendingMode = layer.blendingMode,
-                            defaultWeight = i == 0 && layer.syncedLayerIndex < 0 ? 1f : layer.defaultWeight,
+                            defaultWeight = layer.stateMachine && layer.stateMachine.name == "nxclone excluded GoGo Loco"
+                                ? 0f : i == 0 && layer.syncedLayerIndex < 0 ? 1f : layer.defaultWeight,
                             iKPass = layer.iKPass,
                             syncedLayerAffectsTiming = layer.syncedLayerAffectsTiming,
                             syncedLayerIndex = layer.syncedLayerIndex < 0 ? -1 : firstCloneLayer + layer.syncedLayerIndex
@@ -178,6 +195,21 @@ namespace nxclone
                     targetFx.layers = originalLayers;
                     EditorUtility.SetDirty(targetFx);
                     throw;
+                }
+
+                foreach (var receiver in cloneRoot.GetComponentsInChildren<Component>(true)
+                    .Where(component => component && component.GetType().FullName == "VRC.SDK3.Dynamics.Contact.Components.VRCContactReceiver"))
+                {
+                    var original = Resolve(sourceRoot, AnimationUtility.CalculateTransformPath(receiver.transform, cloneRoot));
+                    if (!original || !original.GetComponent(receiver.GetType())) continue;
+                    var serialized = new SerializedObject(receiver);
+                    var parameter = serialized.FindProperty("parameter");
+                    if (parameter != null && parameter.propertyType == SerializedPropertyType.String)
+                    {
+                        // Unconsumed contact outputs must not write back into the main avatar.
+                        parameter.stringValue = maps.names.TryGetValue(parameter.stringValue, out var alias) ? alias : "";
+                        serialized.ApplyModifiedPropertiesWithoutUndo();
+                    }
                 }
 
                 return new Result
@@ -324,9 +356,6 @@ namespace nxclone
             IReadOnlyDictionary<string, string> names, bool isolateExpressionInputs)
         {
             var result = SourceControllerParameters(sourceFx, expressions).ToDictionary(p => p.name, p => p.type, StringComparer.Ordinal);
-            foreach (var expression in expressions)
-                if (!string.IsNullOrEmpty(expression.name) && names.ContainsKey(expression.name))
-                    result[expression.name] = ToControllerType(expression.valueType);
             if (isolateExpressionInputs)
                 foreach (string name in ExpressionInputNames) result[name] = ExpressionInputType(targetFx, sourceFx, name);
             return result;
@@ -384,8 +413,10 @@ namespace nxclone
                 var expected = ToControllerType(expression.valueType);
                 if (parameters.TryGetValue(expression.name, out var existing))
                 {
-                    if (existing.type != expected)
-                        throw new InvalidOperationException($"Source parameter '{expression.name}' has different controller and expression types.");
+                    // VRChat converts between numeric expression and Animator types at runtime.
+                    // Keep the controller's type so its transitions and blend trees remain valid.
+                    if (existing.type == AnimatorControllerParameterType.Trigger)
+                        throw new InvalidOperationException($"Source parameter '{expression.name}' uses Trigger in FX. Use Bool, Int or Float for expression controls.");
                     continue;
                 }
                 parameters.Add(expression.name, new AnimatorControllerParameter
@@ -544,9 +575,12 @@ namespace nxclone
             HashSet<AnimatorStateMachine> visitedMachines)
         {
             if (!machine || !visitedMachines.Add(machine)) return;
+            machine.behaviours = CloneSafeBehaviours(machine.behaviours);
+            foreach (var behaviour in machine.behaviours)
+                RewriteBehaviour(behaviour, names, originalSourceFx, sourceRoot, targetAvatarRoot, cloneRoot, layerOffset, sourceLayerCount);
             foreach (var child in machine.states)
             {
-                RewriteState(child.state, names, stateLockParameter, originalSourceFx, sourceRoot, layerOffset, sourceLayerCount);
+                RewriteState(child.state, names, stateLockParameter, originalSourceFx, sourceRoot, targetAvatarRoot, cloneRoot, layerOffset, sourceLayerCount);
                 child.state.motion = CloneMotion(child.state.motion, names, sourceRoot, targetAvatarRoot, cloneRoot,
                     folder, generatedAssets, clips, trees, visitedTrees);
             }
@@ -562,15 +596,16 @@ namespace nxclone
         }
 
         static void RewriteState(AnimatorState state, IReadOnlyDictionary<string, string> names, string stateLockParameter,
-            AnimatorController originalSourceFx, Transform sourceRoot, int layerOffset, int sourceLayerCount)
+            AnimatorController originalSourceFx, Transform sourceRoot, Transform targetAvatarRoot, Transform cloneRoot, int layerOffset, int sourceLayerCount)
         {
             if (state.speedParameterActive) state.speedParameter = Map(state.speedParameter, names);
             if (state.cycleOffsetParameterActive) state.cycleOffsetParameter = Map(state.cycleOffsetParameter, names);
             if (state.mirrorParameterActive) state.mirrorParameter = Map(state.mirrorParameter, names);
             if (state.timeParameterActive) state.timeParameter = Map(state.timeParameter, names);
             foreach (var transition in state.transitions) RewriteTransition(transition, names, stateLockParameter);
+            state.behaviours = CloneSafeBehaviours(state.behaviours);
             foreach (var behaviour in state.behaviours)
-                RewriteBehaviour(behaviour, names, originalSourceFx, sourceRoot, layerOffset, sourceLayerCount);
+                RewriteBehaviour(behaviour, names, originalSourceFx, sourceRoot, targetAvatarRoot, cloneRoot, layerOffset, sourceLayerCount);
         }
 
         static void RewriteTransition(AnimatorTransitionBase transition, IReadOnlyDictionary<string, string> names, string stateLockParameter)
@@ -583,8 +618,32 @@ namespace nxclone
                 transition.AddCondition(AnimatorConditionMode.IfNot, 0f, stateLockParameter);
         }
 
+        static AvatarMask CopyMask(AvatarMask source, Transform avatarRoot, Transform cloneRoot,
+            string folder, List<string> generatedAssets)
+        {
+            if (!source) return null;
+            var copy = UnityEngine.Object.Instantiate(source);
+            string prefix = AnimationUtility.CalculateTransformPath(cloneRoot, avatarRoot);
+            for (int i = 0; i < copy.transformCount; i++)
+            {
+                string path = source.GetTransformPath(i);
+                copy.SetTransformPath(i, string.IsNullOrEmpty(path) ? prefix : prefix + "/" + path);
+            }
+            string assetPath = AssetDatabase.GenerateUniqueAssetPath(folder + "/clone-fx-mask.asset");
+            AssetDatabase.CreateAsset(copy, assetPath);
+            generatedAssets.Add(assetPath);
+            return copy;
+        }
+
+        // These SDK behaviours affect the owning avatar, rather than a clone visual.
+        static StateMachineBehaviour[] CloneSafeBehaviours(StateMachineBehaviour[] behaviours) =>
+            behaviours.Where(behaviour => behaviour && behaviour.GetType().Name is not
+                ("VRCPlayableLayerControl" or "VRCAnimatorTrackingControl" or
+                 "VRCAnimatorLocomotionControl" or "VRCAnimatorTemporaryPoseSpace") &&
+                (behaviour is not VRCAnimatorLayerControl layer || layer.playable == VRC_AnimatorLayerControl.BlendableLayer.FX)).ToArray();
+
         static void RewriteBehaviour(StateMachineBehaviour behaviour, IReadOnlyDictionary<string, string> names,
-            AnimatorController originalSourceFx, Transform sourceRoot, int layerOffset, int sourceLayerCount)
+            AnimatorController originalSourceFx, Transform sourceRoot, Transform targetAvatarRoot, Transform cloneRoot, int layerOffset, int sourceLayerCount)
         {
             if (!behaviour) return;
             var serialized = new SerializedObject(behaviour);
@@ -606,9 +665,19 @@ namespace nxclone
             var property = serialized.GetIterator();
             while (property.Next(true))
             {
-                if (property.propertyType == SerializedPropertyType.String && names.TryGetValue(property.stringValue, out var mapped))
+                if (property.propertyType == SerializedPropertyType.String && behaviour.GetType().Name == "VRCAnimatorPlayAudio" &&
+                    property.name.Equals("SourcePath", StringComparison.OrdinalIgnoreCase))
                 {
-                    if (!behaviour.GetType().Name.Contains("ParameterDriver", StringComparison.Ordinal))
+                    var sourceAudio = Resolve(sourceRoot, property.stringValue);
+                    var cloneAudio = Resolve(cloneRoot, property.stringValue);
+                    if (!sourceAudio || !cloneAudio || !cloneAudio.GetComponent<AudioSource>())
+                        throw new InvalidOperationException($"Clone audio behaviour cannot find AudioSource at '{property.stringValue}'.");
+                    changes.Add((property.propertyPath, AnimationUtility.CalculateTransformPath(cloneAudio, targetAvatarRoot)));
+                }
+                else if (property.propertyType == SerializedPropertyType.String && names.TryGetValue(property.stringValue, out var mapped))
+                {
+                    if (!behaviour.GetType().Name.Contains("ParameterDriver", StringComparison.Ordinal) &&
+                        !(behaviour.GetType().Name == "VRCAnimatorPlayAudio" && property.name == "ParameterName"))
                         throw new InvalidOperationException($"Clone FX behaviour '{behaviour.GetType().FullName}' stores parameter '{property.stringValue}' in unsupported field '{property.propertyPath}'.");
                     changes.Add((property.propertyPath, mapped));
                 }
@@ -646,7 +715,7 @@ namespace nxclone
                     string path = AssetDatabase.GenerateUniqueAssetPath($"{folder}/clone-{Guid.NewGuid():N}.anim");
                     AssetDatabase.CreateAsset(copy, path);
                     generatedAssets.Add(path);
-                    RemapClip(clip, copy, sourceRoot, targetAvatarRoot, cloneRoot);
+                    RemapClip(clip, copy, sourceRoot, targetAvatarRoot, cloneRoot, names);
                     clips.Add(clip, copy);
                 }
                 return copy;
@@ -679,7 +748,7 @@ namespace nxclone
         }
 
         static void RemapClip(AnimationClip source, AnimationClip copy, Transform sourceRoot,
-            Transform targetAvatarRoot, Transform cloneRoot)
+            Transform targetAvatarRoot, Transform cloneRoot, IReadOnlyDictionary<string, string> names)
         {
             var curves = AnimationUtility.GetCurveBindings(source)
                 .Select(binding => (binding, curve: AnimationUtility.GetEditorCurve(source, binding))).ToArray();
@@ -693,8 +762,27 @@ namespace nxclone
                 var binding = item.binding;
                 if (sourceRoot == targetAvatarRoot && IsGeneratedClonePath(binding.path))
                     throw new InvalidOperationException($"Root-source FX clip '{source.name}' targets generated nxclone path '{binding.path}'.");
+                // VRCFury uses this nonexistent object solely to retain clip duration.
+                if (binding.path == "__vrcf_length" && binding.type == typeof(GameObject) && binding.propertyName == "m_IsActive")
+                {
+                    AnimationUtility.SetEditorCurve(copy, binding, item.curve);
+                    continue;
+                }
+                // Animator parameter curves operate on the merged avatar controller.
+                if (binding.type == typeof(Animator) && string.IsNullOrEmpty(binding.path) && names.ContainsKey(binding.propertyName))
+                {
+                    binding.propertyName = Map(binding.propertyName, names);
+                    AnimationUtility.SetEditorCurve(copy, binding, item.curve);
+                    continue;
+                }
                 var sourceTarget = Resolve(sourceRoot, binding.path);
                 var cloneTarget = Resolve(cloneRoot, binding.path);
+                // The SPS bake leaves a build-only config curve alongside its runtime curves.
+                if (binding.type.FullName == "VF.Component.VRCFuryHapticPlug" && binding.propertyName == "spsAnimatedEnabled" &&
+                    curves.Any(entry => entry.binding.propertyName == "material._SPS_Enabled") &&
+                    curves.Any(entry => entry.binding.path.StartsWith(binding.path + "/", StringComparison.Ordinal) &&
+                        entry.binding.path.EndsWith("BakedSpsPlug", StringComparison.Ordinal) && entry.binding.propertyName == "m_IsActive"))
+                    continue;
                 if (!sourceTarget || !cloneTarget || !HasComponent(sourceTarget, binding.type) || !HasComponent(cloneTarget, binding.type))
                     throw UnsupportedCloneTrack(source, binding);
                 binding.path = AnimationUtility.CalculateTransformPath(cloneTarget, targetAvatarRoot);

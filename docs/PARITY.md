@@ -1,6 +1,6 @@
 # Feature coverage and validation
 
-Version 0.3.5 adds standalone afterimages without clone slots. Full feature parity is not established. This matrix distinguishes implementation from runtime proof; there is no claim of complete superiority over another product.
+Version 0.3.6 adds independent avatar toggle menus with GoGo Loco exclusion and common effect components. Full feature parity is not established. This matrix distinguishes implementation from runtime proof; there is no claim of complete superiority over another product.
 
 ## Implemented
 
@@ -18,6 +18,7 @@ Version 0.3.5 adds standalone afterimages without clone slots. Full feature pari
 | Flat afterimages and primary silhouette priority | Offscreen GPU checks cover flat alpha, camera proximity fade, distinct overlapping colours and priority over physically nearer ghosts. Geometry silhouettes and reserved stencil bits remain the documented limits. |
 | Whole-body freeze and grabbable posing | Actual native solver ownership tests: source follow, posing, freeze and return to live. Synthetic tests do not simulate a VRChat hand grab. |
 | Body recording, hips and sampled root movement | Native capture, playback, stop and recapture tests. A durable synced take phase replaces a brief request pulse; capture stays in a non-looping clip tail so native freeze caches survive playback. Tests mirror SDK driver writes explicitly. |
+| Independent avatar toggle menus | Native Animator checks cover separate main/clone clothing, Light and particle-renderer toggles, master visibility, transform masks, rich-text GoGo removal, dedicated GoGo FX placeholders, menu aliases/icons, root Animator parameter curves and mixed numeric types. SDK audio behavior paths/parameters and retained contact sender/receiver output aliases are checked as generated data. Full SDK preprocessing of the supplied avatar retains Wet Effect On, Shoot, Gold Stream, Drip and SPS On menu aliases plus baked SPS runtime curves; final cost is 124/256 synced bits. Live VRChat remains unverified. |
 | Independent clone FX and transition lock | Native root/clone state independence, base-layer weight, copied clips/menus/drivers, numeric built-in aliases and source preservation tests. |
 | Gesture commands | Native press/hold/release/menu state-machine tests with standard and VRCFury numeric inputs. SDK command schema checked; driver writes explicitly mirrored in editor tests. |
 | Expression/gesture recording | Timed snapshot and playback layers, observer-side request handling, typed buffers and backup/restore schema checks. Actual SDK Copy execution needs VRChat. |
@@ -37,7 +38,7 @@ Version 0.3.5 adds standalone afterimages without clone slots. Full feature pari
 
 ## Remaining validation and limits
 
-- The 0.3.1 supplied-avatar full callback rerun is blocked by a legacy VRCFury `OriginalContactsHook` exception in the disposable fixture. Earlier Armature Link/compression gates and current native rig/control checks are separate evidence.
+- The 0.3.6 supplied-avatar full callback test passes. The disposable fixture still logs legacy VRCFury hook warnings and a vendor shutdown exception; passing assertions do not establish warning-free source assets.
 - Live VRChat, multi-user contact tracking and Windows editor operation remain unverified.
 - FinalIK and VRChat parameter-driver/layer-control behavior cannot be inferred from SDK stub serialization alone.
 - Afterimage feedback delay varies with frame rate; it is not a fixed time delay.

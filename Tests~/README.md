@@ -99,3 +99,18 @@ The original avatar project is never modified by these isolated fixture checks.
 - `NxCloneAxisSelectionSmoke.Run`: checks all eight axis masks plus native Distance/Yaw movement, retained disabled coordinates and world-drop hold/resume. Use hidden Gamescope; omit `-quit`.
 
 - `NxCloneAfterimagesOnlySmoke.Run`: zero clone slots, empty preset persistence, upload generation, afterimage-only menus and one-bit budgeting with clone options retained.
+
+## Independent avatar toggles (0.3.6)
+
+- `NxCloneMenuFilterSmoke.Run`: rich-text GoGo labels, nested/shared/cyclic
+  menus, exclusive parameter removal and source preservation.
+- `NxCloneToggleSmoke.Run`: synthetic independent clothing and native effect
+  toggles, retargeted masks, menu aliases/icons, GoGo layer placeholders,
+  global tracking behavior exclusion, audio paths, contact output aliases and
+  mixed numeric parameter metadata.
+  Uses native `Animator.Update` in Edit Mode and exits itself; omit `-quit`.
+  Also copy `NxClonePosingSmoke.cs` for its humanoid fixture.
+- `NxCloneAvatarToggleSmoke.Run`: disposable copy of `Assets/NX.unity`, full SDK
+  preprocessing through VRCFury, cloned avatar menu aliases, GoGo exclusion
+  and original source preservation. This checks generated assets, not live
+  VRChat interaction. Omit `-quit`; the check exits itself.
