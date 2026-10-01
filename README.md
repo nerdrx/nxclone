@@ -1,6 +1,4 @@
-<p align="center">
-  <img src="docs/assets/nxclone-banner.svg" width="100%" alt="nxclone — a Unity clone and afterimage builder for VRChat" />
-</p>
+<h1 align="center">nxclone</h1>
 
 <p align="center">
   <code>v0.3.6 preview</code> &nbsp; <code>Unity 2022.3.22f1</code> &nbsp; <code>PC VRChat</code> &nbsp; <code>VPM</code>
@@ -74,18 +72,6 @@ Choose your original avatar, add up to four clone slots and set their placement.
 Choose **Afterimages only** for standalone trails. Flat silhouettes follow your avatar at zero placement offset, with individual colours, camera proximity fade, primary-body masking and a separate toggle.
 
 The delay uses constraint feedback and varies with frame rate. Textures, cutout holes and displaced surfaces are not reproduced; these are geometry silhouettes. The current shader supports PC avatars, not Quest/mobile. [Afterimage behavior and limits](docs/USAGE.md#behavior-and-compatibility)
-
-## Layouts
-
-<table>
-  <tr>
-    <td width="33%" align="center" valign="top"><a href="docs/USAGE.md"><img src="docs/assets/dance-layout.svg" alt="Diagram of a clone facing its source avatar at 1 m" /></a><br /><strong>Facing dance partner</strong><br /><sub>Own-facing steps and turns in place.</sub></td>
-    <td width="33%" align="center" valign="top"><a href="docs/USAGE.md"><img src="docs/assets/drop-layout.svg" alt="Diagram of a dropped clone holding its position as the avatar moves" /></a><br /><strong>World drop</strong><br /><sub>Hold placement, then resume following.</sub></td>
-    <td width="33%" align="center" valign="top"><a href="docs/USAGE.md"><img src="docs/assets/trail-layout.svg" alt="Diagram of coloured afterimage silhouettes behind a main avatar" /></a><br /><strong>Standalone trails</strong><br /><sub>Afterimages with their own toggle.</sub></td>
-  </tr>
-</table>
-
-Illustrated layouts. See the [control guide](docs/USAGE.md) for setup and the [validation matrix](docs/PARITY.md) for runtime checks.
 
 ## Avatar requirements
 
