@@ -1,9 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 440" role="img" aria-labelledby="title desc">
   <title id="title">nxclone</title>
-  <desc id="desc">nxclone avatar clone and afterimage builder, shown as one violet avatar followed by translucent cyan silhouettes.</desc>
+  <desc id="desc">nxclone for VRChat, illustrated with placement controls, independent toggles, a facing clone and afterimage silhouettes. This is an editor illustration.</desc>
   <defs>
-    <linearGradient id="panel" x2="1" y2="1"><stop stop-color="#17101f"/><stop offset="1" stop-color="#08090e"/></linearGradient>
-    <linearGradient id="main" x2="0" y2="1"><stop stop-color="#b175ff"/><stop offset="1" stop-color="#7700ff"/></linearGradient>
     <symbol id="figure" viewBox="0 0 126 260">
       <circle cx="63" cy="32" r="23"/>
       <path d="M30 95Q31 70 63 70Q95 70 96 95L103 148L82 153L76 112L74 163L91 248H66L61 181L56 248H31L50 163L48 112L42 153L21 148Z"/>
@@ -17,21 +15,38 @@
     </g>
   </g>
   <text x="88" y="180" fill="#efeaff" font-family="system-ui,sans-serif" font-size="84" font-weight="800" letter-spacing="-3">nxclone</text>
-  <text x="92" y="222" fill="#bfa8ff" font-family="system-ui,sans-serif" font-size="25" font-weight="600">Avatar clones, made clearer.</text>
+  <text x="92" y="222" fill="#bfa8ff" font-family="system-ui,sans-serif" font-size="25" font-weight="600">Avatar clones &amp; afterimages.</text>
   <path d="M92 246H270" stroke="#7700ff" stroke-width="3"/>
-  <text x="92" y="286" fill="#efeaff" font-family="system-ui,sans-serif" font-size="21">Create a clone. Leave a trail.</text>
+  <text x="92" y="286" fill="#efeaff" font-family="system-ui,sans-serif" font-size="21">A clone and trail builder for VRChat.</text>
   <rect x="92" y="348" width="9" height="9" fill="#00e5ff"/>
   <text x="116" y="357" fill="#aaa0bb" font-family="ui-monospace,monospace" font-size="12" font-weight="700" letter-spacing="2">VRCHAT / UNITY / VPM</text>
-  <rect x="612" y="28" width="800" height="384" rx="4" fill="url(#panel)" stroke="#3e344b"/>
-  <g fill="none" stroke="#24192f" stroke-width="1"><path d="M650 80H1370M650 150H1370M650 220H1370M650 290H1370M650 360H1370M690 58V384M790 58V384M890 58V384M990 58V384M1090 58V384M1190 58V384M1290 58V384"/></g>
-  <path d="M731 340C837 345 865 330 950 337S1135 344 1308 335" fill="none" stroke="#8051b7" stroke-width="2" stroke-dasharray="8 8"/>
-  <use href="#figure" x="655" y="88" width="126" height="260" fill="none" stroke="#48d9ff" stroke-width="3" opacity=".2"/>
-  <use href="#figure" x="750" y="88" width="126" height="260" fill="none" stroke="#48d9ff" stroke-width="3" opacity=".35"/>
-  <use href="#figure" x="845" y="88" width="126" height="260" fill="none" stroke="#48d9ff" stroke-width="3" opacity=".62"/>
-  <use href="#figure" x="970" y="88" width="126" height="260" fill="url(#main)" stroke="#c999ff" stroke-width="2"/>
-  <path d="M1100 206H1260" fill="none" stroke="#7700ff" stroke-width="3"/>
-  <circle cx="1100" cy="206" r="5" fill="#00e5ff"/>
-  <text x="1120" y="187" fill="#d8c1ff" font-family="ui-monospace,monospace" font-size="13" font-weight="700" letter-spacing="2">SOURCE</text>
-  <text x="1188" y="230" fill="#8feaff" font-family="ui-monospace,monospace" font-size="13" font-weight="700" letter-spacing="2">AFTERIMAGES</text>
-  <rect x="1000" y="370" width="352" height="1" fill="#493555"/>
+  <!-- Simplified editor illustration, not a Unity screenshot. -->
+  <rect x="612" y="28" width="800" height="384" rx="4" fill="#1d2023" stroke="#3e434a"/>
+  <g font-family="system-ui,sans-serif">
+    <rect x="630" y="46" width="300" height="348" rx="3" fill="#292c30"/>
+    <rect x="630" y="46" width="300" height="36" rx="3" fill="#4c326c"/>
+    <text x="646" y="70" fill="#eee" font-size="17" font-weight="600">nxclone</text>
+    <g fill="#bdbdbd" font-size="15">
+      <text x="646" y="110">Root avatar</text><text x="646" y="166">Clone 1 · Placement</text>
+      <text x="646" y="198">Distance</text><text x="646" y="232">Yaw</text>
+      <text x="670" y="271">Independent avatar toggles</text><text x="670" y="305">Add afterimages</text>
+    </g>
+    <g fill="#171717" stroke="#626262">
+      <rect x="646" y="120" width="268" height="26" rx="2"/>
+      <rect x="785" y="180" width="129" height="26" rx="2"/><rect x="785" y="214" width="129" height="26" rx="2"/>
+      <rect x="646" y="257" width="15" height="15" rx="2"/><rect x="646" y="291" width="15" height="15" rx="2"/>
+    </g>
+    <g fill="#eee" font-size="14"><text x="656" y="139">Avatar root</text><text x="797" y="199">1 m</text><text x="797" y="233">180°</text></g>
+    <g fill="none" stroke="#c7a6ff" stroke-width="2"><path d="m649 264 4 4 6-8m-10 38 4 4 6-8"/></g>
+    <rect x="646" y="335" width="268" height="37" rx="3" fill="#7700ff"/>
+    <text x="780" y="359" text-anchor="middle" fill="white" font-size="16" font-weight="600">Generate scene copy</text>
+    <text x="958" y="75" fill="#bdbdbd" font-size="13">CLONE / AFTERIMAGES</text>
+  </g>
+  <g fill="none" stroke="#34383e" stroke-width="1"><path d="M951 128H1391M951 194H1391M951 260H1391M951 326H1391M991 96V370M1071 96V370M1151 96V370M1231 96V370M1311 96V370"/></g>
+  <use href="#figure" x="960" y="116" width="96" height="218" fill="none" stroke="#48d9ff" stroke-width="2.5" opacity=".3"/>
+  <use href="#figure" x="1032" y="116" width="96" height="218" fill="none" stroke="#48d9ff" stroke-width="2.5" opacity=".55"/>
+  <use href="#figure" x="1104" y="116" width="96" height="218" fill="#7700ff" stroke="#c7a6ff" stroke-width="2"/>
+  <use href="#figure" x="1270" y="116" width="96" height="218" fill="#bfa8ff" stroke="#c7a6ff" stroke-width="2"/>
+  <path d="M1152 351H1318" stroke="#7700ff" stroke-width="2"/>
+  <text x="1235" y="376" text-anchor="middle" fill="#aaa0bb" font-family="ui-monospace,monospace" font-size="12">1 m · facing partner</text>
 </svg>
