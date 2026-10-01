@@ -1,7 +1,7 @@
 <h1 align="center">nxclone</h1>
 
 <p align="center">
-  <code>v0.3.7 preview</code> &nbsp; <code>Unity 2022.3.22f1</code> &nbsp; <code>PC VRChat</code> &nbsp; <code>VPM</code>
+  <code>v0.3.8 preview</code> &nbsp; <code>Unity 2022.3.22f1</code> &nbsp; <code>PC VRChat</code> &nbsp; <code>VPM</code>
 </p>
 
 <p align="center"><strong>Build avatar clones and afterimages in Unity.</strong><br />Dance partners, independent avatar toggles, posing, recording and standalone trails.</p>
@@ -13,7 +13,7 @@
   <a href="docs/INSTALL.md">First clone</a> &nbsp;·&nbsp;
   <a href="docs/USAGE.md">Control guide</a> &nbsp;·&nbsp;
   <a href="docs/PARITY.md">Validation</a> &nbsp;·&nbsp;
-  <a href="https://github.com/nerdrx/nxclone/releases/tag/v0.3.7">Latest release</a>
+  <a href="https://github.com/nerdrx/nxclone/releases/tag/v0.3.8">Latest release</a>
 </p>
 
 ---
@@ -88,7 +88,7 @@ Missing expression assets are created on the scene copy. Your original assets an
 | Checked | Evidence |
 | :--- | :--- |
 | **Linux Unity** | Native movement/drop, pose, playback, rendering and independent-toggle checks. |
-| **Supplied avatar** | SDK preprocessing through VRCFury passes; copied toggle menus and baked SPS curves retained. Final synced cost: **124/256 bits** for the tested setup. |
+| **Supplied avatar** | SDK preprocessing through VRCFury passes; copied toggle menus and baked SPS curves retained. Final synced cost: **151/256 bits** for the tested setup. |
 | **Windows / live VRChat** | Still needs validation, including remote contact interaction and SDK runtime behaviors. |
 | **Full feature parity** | Not established. Physics/script components and some original workflows remain limited. |
 

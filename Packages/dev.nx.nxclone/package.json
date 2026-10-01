@@ -1,6 +1,6 @@
 {
   "name": "dev.nx.nxclone",
-  "version": "0.3.7",
+  "version": "0.3.8",
   "displayName": "nxclone",
   "description": "Local, source-first VRChat avatar clone and afterimage builder.",
   "unity": "2022.3",

@@ -1,6 +1,6 @@
 # Feature coverage and validation
 
-Version 0.3.7 fixes copied animation graph ownership and Direct Blend Tree child parameter isolation. Independent avatar toggle menus include GoGo Loco exclusion and common effect components. Full feature parity is not established. This matrix distinguishes implementation from runtime proof; there is no claim of complete superiority over another product.
+Version 0.3.8 fixes generated layers introducing Write Defaults Off into a Write Defaults On avatar. Version 0.3.7 fixes copied animation graph ownership and Direct Blend Tree child parameter isolation. Independent avatar toggle menus include GoGo Loco exclusion and common effect components. Full feature parity is not established. This matrix distinguishes implementation from runtime proof; there is no claim of complete superiority over another product.
 
 ## Implemented
 
@@ -18,7 +18,7 @@ Version 0.3.7 fixes copied animation graph ownership and Direct Blend Tree child
 | Flat afterimages and primary silhouette priority | Offscreen GPU checks cover flat alpha, camera proximity fade, distinct overlapping colours and priority over physically nearer ghosts. Geometry silhouettes and reserved stencil bits remain the documented limits. |
 | Whole-body freeze and grabbable posing | Actual native solver ownership tests: source follow, posing, freeze and return to live. Synthetic tests do not simulate a VRChat hand grab. |
 | Body recording, hips and sampled root movement | Native capture, playback, stop and recapture tests. A durable synced take phase replaces a brief request pulse; capture stays in a non-looping clip tail so native freeze caches survive playback. Tests mirror SDK driver writes explicitly. |
-| Independent avatar toggle menus | Native Animator checks cover separate main/clone clothing, Light and particle-renderer toggles, master visibility, transform masks, rich-text GoGo removal, dedicated GoGo FX placeholders, menu aliases/icons, root Animator parameter curves and mixed numeric types. SDK audio behavior paths/parameters and retained contact sender/receiver output aliases are checked as generated data. Full SDK preprocessing of the supplied avatar retains Wet Effect On, Shoot, Gold Stream, Drip and SPS On menu aliases plus baked SPS runtime curves; final cost is 124/256 synced bits. Live VRChat remains unverified. |
+| Independent avatar toggle menus | Native Animator checks cover separate main/clone clothing, Light and particle-renderer toggles, master visibility, transform masks, rich-text GoGo removal, dedicated GoGo FX placeholders, menu aliases/icons, root Animator parameter curves and mixed numeric types. SDK audio behavior paths/parameters and retained contact sender/receiver output aliases are checked as generated data. Full SDK preprocessing of the supplied avatar retains Wet Effect On, Shoot, Gold Stream, Drip and SPS On menu aliases plus baked SPS runtime curves; final cost is 151/256 synced bits. Live VRChat remains unverified. |
 | Independent clone FX and transition lock | Native root/clone state independence, base-layer weight, copied clips/menus/drivers, numeric built-in aliases and source preservation tests. |
 | Gesture commands | Native press/hold/release/menu state-machine tests with standard and VRCFury numeric inputs. SDK command schema checked; driver writes explicitly mirrored in editor tests. |
 | Expression/gesture recording | Timed snapshot and playback layers, observer-side request handling, typed buffers and backup/restore schema checks. Actual SDK Copy execution needs VRChat. |
@@ -38,7 +38,8 @@ Version 0.3.7 fixes copied animation graph ownership and Direct Blend Tree child
 
 ## Remaining validation and limits
 
-- The 0.3.7 supplied-avatar full callback test passes, including Direct Blend Tree weight aliases and main-avatar transition isolation. Native repeated on/off cycles and external state-machine ownership checks pass. The disposable fixture still logs legacy VRCFury hook warnings and a vendor shutdown exception; passing assertions do not establish warning-free source assets.
+- Generated layers now follow an On policy consistently, including expression input copying and placement dials. Native implicit-reset checks cover repeated main and clone On/Off cycles. [VRChat recommends consistent Write Defaults across an avatar](https://creators.vrchat.com/avatars/#write-defaults-on-states).
+- The 0.3.8 supplied-avatar full callback and native checks pass, including independent repeated resets of Chains, Warmers, Fem, TailDown, TailThin, Wet Effect On and Hidden. The selected placement/posing configuration uses 151 synced bits. All final FX states retain the avatar's On policy. Other Rock-it controls produce no observable native output in the source-only baseline either; their SDK-driven runtime effects remain unverified. The disposable fixture still logs legacy VRCFury hook warnings and a vendor shutdown exception; passing assertions do not establish warning-free source assets.
 - Live VRChat, multi-user contact tracking and Windows editor operation remain unverified.
 - FinalIK and VRChat parameter-driver/layer-control behavior cannot be inferred from SDK stub serialization alone.
 - Afterimage feedback delay varies with frame rate; it is not a fixed time delay.

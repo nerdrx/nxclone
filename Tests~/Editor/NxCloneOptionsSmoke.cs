@@ -193,14 +193,14 @@ public static class NxCloneOptionsSmoke
                 var positionParameters = expressionParameters.Where(parameter => parameter.name.StartsWith($"nxclone_position_{i}_", StringComparison.Ordinal)).ToArray();
                 Assert(positionParameters.Length == (defaultsOnly ? 1 : 3) && positionParameters.All(parameter => parameter.valueType == VRCExpressionParameters.ValueType.Float && parameter.defaultValue == 0.5f && parameter.networkSynced && !parameter.saved),
                     $"clone {i} should expose only selected neutral, synced, unsaved position dials");
-                Assert(layers.Where(layer => layer.name.Contains($"nxclone_position_{i} position")).SelectMany(layer => layer.stateMachine.states).All(entry => !entry.state.writeDefaultValues),
-                    "position dials must keep Write Defaults off even when other generated layers use it");
+                Assert(layers.Where(layer => layer.name.Contains($"nxclone_position_{i} position")).SelectMany(layer => layer.stateMachine.states).All(entry => entry.state.writeDefaultValues),
+                    "position dials must follow the selected Write Defaults On policy");
                 var rotationParameters = expressionParameters.Where(parameter => parameter.name.StartsWith($"nxclone_rotation_{i}_", StringComparison.Ordinal)).ToArray();
                 Assert(rotationParameters.Length == (defaultsOnly ? 1 : 3) && rotationParameters.All(parameter => parameter.valueType == VRCExpressionParameters.ValueType.Float && parameter.defaultValue == 0.5f && parameter.networkSynced && !parameter.saved),
                     $"clone {i} should expose only selected neutral, synced, unsaved rotation dials");
                 var rotationLayers = layers.Where(layer => layer.name.Contains($"nxclone_rotation_{i} rotation")).ToArray();
-                Assert(rotationLayers.Length == (defaultsOnly ? 1 : 3) && rotationLayers.SelectMany(layer => layer.stateMachine.states).All(entry => !entry.state.writeDefaultValues),
-                    "all rotation dials must keep Write Defaults off even when other generated layers use it");
+                Assert(rotationLayers.Length == (defaultsOnly ? 1 : 3) && rotationLayers.SelectMany(layer => layer.stateMachine.states).All(entry => entry.state.writeDefaultValues),
+                    "rotation dials must follow the selected Write Defaults On policy");
                 if (defaultsOnly)
                 {
                     Assert(positionParameters[0].name == $"nxclone_position_{i}_z" && rotationParameters[0].name == $"nxclone_rotation_{i}_y",
@@ -319,9 +319,9 @@ public static class NxCloneOptionsSmoke
             var baselineBindings = baselineClip ? AnimationUtility.GetCurveBindings(baselineClip)
                 .Where(binding => binding.path == "BaselineBody" && binding.type == typeof(SkinnedMeshRenderer) && binding.propertyName == "m_Enabled")
                 .ToArray() : Array.Empty<EditorCurveBinding>();
-            Assert(wearBaseline.defaultWeight == 1f && baselineState && !baselineState.writeDefaultValues &&
+            Assert(wearBaseline.defaultWeight == 1f && baselineState && baselineState.writeDefaultValues &&
                    baselineBindings.Length == 1 && Mathf.Approximately(AnimationUtility.GetEditorCurve(baselineClip, baselineBindings[0]).Evaluate(0f), 1f),
-                "missing renderer animation needs an always-active baseline layer with Write Defaults Off even when selected policy is On");
+                "missing renderer animation needs an always-active baseline matching the selected Write Defaults policy");
             var wearLayers = new[] { Array.FindIndex(layers, layer => layer.name == "nxclone wear 1"), Array.FindIndex(layers, layer => layer.name == "nxclone wear 2") };
             Assert(wearLayers.All(index => index >= 0 && Mathf.Approximately(layers[index].defaultWeight, 0f)),
                 "wear should add one initially muted FX layer per clone");

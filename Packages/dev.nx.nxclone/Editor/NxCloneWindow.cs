@@ -1090,8 +1090,10 @@ namespace nxclone
             }
             foreach (var layer in fx.layers.Skip(controlsLayerStart))
                 foreach (var state in States(layer.stateMachine))
-                    state.writeDefaultValues = !alwaysOffDefaults.Contains(layer.name) &&
-                        (alwaysWriteDefaults.Contains(layer.name) || generatedDefaults);
+                    // One injected WD-Off state can stop WD-On source toggles from
+                    // restoring their clothes, blendshapes and effects when switched off.
+                    state.writeDefaultValues = generatedDefaults ||
+                        !alwaysOffDefaults.Contains(layer.name) && alwaysWriteDefaults.Contains(layer.name);
             var layers = descriptor.baseAnimationLayers ?? Array.Empty<VRCAvatarDescriptor.CustomAnimLayer>();
             descriptor.customizeAnimationLayers = true;
             if (!layers.Any(item => item.type == VRCAvatarDescriptor.AnimLayerType.FX))

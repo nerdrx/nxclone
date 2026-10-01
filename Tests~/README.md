@@ -100,7 +100,7 @@ The original avatar project is never modified by these isolated fixture checks.
 
 - `NxCloneAfterimagesOnlySmoke.Run`: zero clone slots, empty preset persistence, upload generation, afterimage-only menus and one-bit budgeting with clone options retained.
 
-## Independent avatar toggles (0.3.7)
+## Independent avatar toggles (0.3.8)
 
 - `NxCloneMenuFilterSmoke.Run`: rich-text GoGo labels, nested/shared/cyclic
   menus, exclusive parameter removal and source preservation.
@@ -119,3 +119,13 @@ The original avatar project is never modified by these isolated fixture checks.
 - `NxCloneSourceFxSmoke.Run`: includes a controller referencing a state machine
   owned by another asset. Merge must copy its graph before remapping and leave
   the original transition conditions unchanged.
+- `NxCloneWriteDefaultsSmoke.Run`: Write Defaults On source toggles with null
+  Off motions must restore their implicit defaults on both bodies, repeatedly.
+  Generated input-copy and placement layers must match the source policy.
+  Omit `-quit`; the check exits itself.
+- The supplied-avatar check now compares a source-only Rock-it baseline before
+  testing main/clone outputs. Chains, Warmers, Fem, TailDown and the TailThin
+  slider must change and reset independently. Rock-it controls with observable
+  source outputs are checked the same way. Controls without an observable
+  source output are explicitly reported unverified; SDK behaviors are not
+  simulated or claimed to work from parameter readback alone.
