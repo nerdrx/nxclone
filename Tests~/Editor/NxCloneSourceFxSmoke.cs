@@ -255,6 +255,42 @@ public static class NxCloneSourceFxSmoke
                    mergedLayerControl.layer == rootLayerCount,
                 "Copied source FX layer control did not retain its playable and shift its target layer index.");
 
+            // VRCFury can leave layer state machines in a separate controller asset and
+            // reference them from the baked FX controller. CopyAsset may preserve those
+            // external references, so merge must not rewrite the imported source asset.
+            var externalOwner = AnimatorController.CreateAnimatorControllerAtPath(folder + "/external-owner.controller");
+            externalOwner.AddParameter("externalToggle", AnimatorControllerParameterType.Bool);
+            var externalMachine = externalOwner.layers[0].stateMachine;
+            externalMachine.name = "Externally owned machine";
+            var externalOff = externalMachine.AddState("External Off");
+            var externalOn = externalMachine.AddState("External On");
+            var externalTransition = externalOff.AddTransition(externalOn);
+            externalTransition.hasExitTime = false;
+            externalTransition.AddCondition(AnimatorConditionMode.If, 0, "externalToggle");
+            var externalSource = AnimatorController.CreateAnimatorControllerAtPath(folder + "/external-source.controller");
+            externalSource.AddParameter("externalToggle", AnimatorControllerParameterType.Bool);
+            var externalLayers = externalSource.layers;
+            externalLayers[0].stateMachine = externalMachine;
+            externalSource.layers = externalLayers;
+            EditorUtility.SetDirty(externalSource);
+            AssetDatabase.SaveAssets();
+            externalSource = AssetDatabase.LoadAssetAtPath<AnimatorController>(folder + "/external-source.controller");
+            externalOwner = AssetDatabase.LoadAssetAtPath<AnimatorController>(folder + "/external-owner.controller");
+            externalMachine = externalOwner.layers[0].stateMachine;
+            externalOff = externalMachine.states.Single(state => state.state.name == "External Off").state;
+            externalTransition = externalOff.transitions.Single();
+            Assert(externalSource.layers[0].stateMachine == externalMachine,
+                "Fixture did not preserve the external state-machine reference.");
+            var externalTarget = AnimatorController.CreateAnimatorControllerAtPath(folder + "/external-target.controller");
+            NxCloneSourceFx.Merge(externalTarget, externalSource, sourceRoot.transform,
+                targetRoot.transform, cloneRoot.transform, 6, null, null, rootParameters, folder);
+            Assert(externalOff.transitions.Length == 1 &&
+                   externalTransition.conditions.Length == 1 &&
+                   externalTransition.conditions[0].parameter == "externalToggle" &&
+                   externalTransition.conditions.All(condition => condition.parameter != "nxclone_clone1_externalToggle" &&
+                       !condition.parameter.StartsWith("nxclone_clone1_nxclone_fx_state_lock", StringComparison.Ordinal)),
+                "Merging FX mutated a state machine owned by an external source controller asset.");
+
             var fullParameters = ScriptableObject.CreateInstance<VRCExpressionParameters>();
             fullParameters.parameters = Enumerable.Range(0, VRCExpressionParameters.MAX_PARAMETER_COST)
                 .Select(i => new VRCExpressionParameters.Parameter { name = "f" + i, valueType = VRCExpressionParameters.ValueType.Bool, networkSynced = true }).ToArray();

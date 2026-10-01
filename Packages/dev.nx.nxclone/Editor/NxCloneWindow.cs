@@ -787,6 +787,7 @@ namespace nxclone
             if (!sourceFx || !AssetDatabase.CopyAsset(AssetDatabase.GetAssetPath(sourceFx), fxPath))
                 throw new InvalidOperationException("Could not copy the avatar FX controller to the generated folder.");
             fx = AssetDatabase.LoadAssetAtPath<AnimatorController>(fxPath);
+            NxCloneSourceFx.CopyExternalAnimatorObjects(fx);
             if (clones.Count > 0 && copyFxAnimations && oldFx && !independentCloneFx)
             {
                 var sameRootClones = clones.Where((clone, i) => !slots[i].source || slots[i].source == avatar).ToArray();

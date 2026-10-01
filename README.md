@@ -1,7 +1,7 @@
 <h1 align="center">nxclone</h1>
 
 <p align="center">
-  <code>v0.3.6 preview</code> &nbsp; <code>Unity 2022.3.22f1</code> &nbsp; <code>PC VRChat</code> &nbsp; <code>VPM</code>
+  <code>v0.3.7 preview</code> &nbsp; <code>Unity 2022.3.22f1</code> &nbsp; <code>PC VRChat</code> &nbsp; <code>VPM</code>
 </p>
 
 <p align="center"><strong>Build avatar clones and afterimages in Unity.</strong><br />Dance partners, independent avatar toggles, posing, recording and standalone trails.</p>
@@ -13,7 +13,7 @@
   <a href="docs/INSTALL.md">First clone</a> &nbsp;·&nbsp;
   <a href="docs/USAGE.md">Control guide</a> &nbsp;·&nbsp;
   <a href="docs/PARITY.md">Validation</a> &nbsp;·&nbsp;
-  <a href="https://github.com/nerdrx/nxclone/releases/tag/v0.3.6">Latest release</a>
+  <a href="https://github.com/nerdrx/nxclone/releases/tag/v0.3.7">Latest release</a>
 </p>
 
 ---

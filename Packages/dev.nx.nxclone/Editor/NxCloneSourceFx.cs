@@ -109,6 +109,7 @@ namespace nxclone
                 AssetDatabase.ImportAsset(copiedPath, ImportAssetOptions.ForceUpdate);
                 sourceCopy = AssetDatabase.LoadAssetAtPath<AnimatorController>(copiedPath);
                 if (!sourceCopy) throw new InvalidOperationException("Copied source FX controller could not be loaded.");
+                CopyExternalAnimatorObjects(sourceCopy);
                 var filteredLayers = sourceCopy.layers;
                 if (excludeGoGoLoco) for (int i = 0; i < filteredLayers.Length; i++)
                 {
@@ -230,6 +231,45 @@ namespace nxclone
                 AssetDatabase.SaveAssets();
                 throw;
             }
+        }
+
+        // CopyAsset only duplicates objects inside that asset file. Baked controllers may
+        // reference states, transitions and behaviours owned by other controller files.
+        public static void CopyExternalAnimatorObjects(AnimatorController controller)
+        {
+            string path = AssetDatabase.GetAssetPath(controller);
+            if (string.IsNullOrEmpty(path)) throw new ArgumentException("Controller must be a saved asset.");
+            var copies = new Dictionary<UnityEngine.Object, UnityEngine.Object>();
+            UnityEngine.Object Own(UnityEngine.Object original)
+            {
+                if (!original || !(original is AnimatorStateMachine || original is AnimatorState ||
+                    original is AnimatorTransitionBase || original is StateMachineBehaviour)) return original;
+                if (copies.TryGetValue(original, out var existing)) return existing;
+                var copy = original;
+                if (AssetDatabase.GetAssetPath(original) != path)
+                {
+                    copy = UnityEngine.Object.Instantiate(original);
+                    copy.name = original.name;
+                    AssetDatabase.AddObjectToAsset(copy, controller);
+                }
+                copies.Add(original, copy);
+                var serialized = new SerializedObject(copy);
+                var iterator = serialized.GetIterator();
+                while (iterator.Next(true))
+                {
+                    if (iterator.propertyType != SerializedPropertyType.ObjectReference) continue;
+                    var reference = iterator.objectReferenceValue;
+                    var owned = Own(reference);
+                    if (owned != reference) iterator.objectReferenceValue = owned;
+                }
+                serialized.ApplyModifiedPropertiesWithoutUndo();
+                EditorUtility.SetDirty(copy);
+                return copy;
+            }
+            var layers = controller.layers;
+            foreach (var layer in layers) layer.stateMachine = (AnimatorStateMachine)Own(layer.stateMachine);
+            controller.layers = layers;
+            EditorUtility.SetDirty(controller);
         }
 
         public static void AddExpressionInputCopyLayer(AnimatorController targetFx, Result merge,
@@ -737,8 +777,13 @@ namespace nxclone
                 copy.blendParameterY = Map(copy.blendParameterY, names);
                 var children = copy.children;
                 for (int i = 0; i < children.Length; i++)
+                {
+                    // Direct trees use a weight parameter per child, rather than blendParameter.
+                    // Leaving these shared lets the main avatar drive the clone's baked toggles.
+                    children[i].directBlendParameter = Map(children[i].directBlendParameter, names);
                     children[i].motion = CloneMotion(children[i].motion, names, sourceRoot, targetAvatarRoot, cloneRoot,
                         folder, generatedAssets, clips, trees, visitedTrees);
+                }
                 copy.children = children;
                 EditorUtility.SetDirty(copy);
                 return copy;

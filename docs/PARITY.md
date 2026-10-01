@@ -1,6 +1,6 @@
 # Feature coverage and validation
 
-Version 0.3.6 adds independent avatar toggle menus with GoGo Loco exclusion and common effect components. Full feature parity is not established. This matrix distinguishes implementation from runtime proof; there is no claim of complete superiority over another product.
+Version 0.3.7 fixes copied animation graph ownership and Direct Blend Tree child parameter isolation. Independent avatar toggle menus include GoGo Loco exclusion and common effect components. Full feature parity is not established. This matrix distinguishes implementation from runtime proof; there is no claim of complete superiority over another product.
 
 ## Implemented
 
@@ -38,7 +38,7 @@ Version 0.3.6 adds independent avatar toggle menus with GoGo Loco exclusion and 
 
 ## Remaining validation and limits
 
-- The 0.3.6 supplied-avatar full callback test passes. The disposable fixture still logs legacy VRCFury hook warnings and a vendor shutdown exception; passing assertions do not establish warning-free source assets.
+- The 0.3.7 supplied-avatar full callback test passes, including Direct Blend Tree weight aliases and main-avatar transition isolation. Native repeated on/off cycles and external state-machine ownership checks pass. The disposable fixture still logs legacy VRCFury hook warnings and a vendor shutdown exception; passing assertions do not establish warning-free source assets.
 - Live VRChat, multi-user contact tracking and Windows editor operation remain unverified.
 - FinalIK and VRChat parameter-driver/layer-control behavior cannot be inferred from SDK stub serialization alone.
 - Afterimage feedback delay varies with frame rate; it is not a fixed time delay.

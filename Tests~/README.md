@@ -100,17 +100,22 @@ The original avatar project is never modified by these isolated fixture checks.
 
 - `NxCloneAfterimagesOnlySmoke.Run`: zero clone slots, empty preset persistence, upload generation, afterimage-only menus and one-bit budgeting with clone options retained.
 
-## Independent avatar toggles (0.3.6)
+## Independent avatar toggles (0.3.7)
 
 - `NxCloneMenuFilterSmoke.Run`: rich-text GoGo labels, nested/shared/cyclic
   menus, exclusive parameter removal and source preservation.
 - `NxCloneToggleSmoke.Run`: synthetic independent clothing and native effect
   toggles, retargeted masks, menu aliases/icons, GoGo layer placeholders,
   global tracking behavior exclusion, audio paths, contact output aliases and
-  mixed numeric parameter metadata.
+  mixed numeric parameter metadata. Repeated on/off cycles and Direct Blend
+  Trees with complementary animated weights check main/clone isolation.
   Uses native `Animator.Update` in Edit Mode and exits itself; omit `-quit`.
   Also copy `NxClonePosingSmoke.cs` for its humanoid fixture.
 - `NxCloneAvatarToggleSmoke.Run`: disposable copy of `Assets/NX.unity`, full SDK
   preprocessing through VRCFury, cloned avatar menu aliases, GoGo exclusion
-  and original source preservation. This checks generated assets, not live
+  and original source preservation. Direct child weights and main-avatar
+  transition isolation are checked after the full build. This checks generated assets, not live
   VRChat interaction. Omit `-quit`; the check exits itself.
+- `NxCloneSourceFxSmoke.Run`: includes a controller referencing a state machine
+  owned by another asset. Merge must copy its graph before remapping and leave
+  the original transition conditions unchanged.

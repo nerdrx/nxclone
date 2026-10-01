@@ -44,6 +44,9 @@ public static class NxCloneToggleSmoke
             GameObject.CreatePrimitive(PrimitiveType.Cube).transform.SetParent(clothes.transform, false);
             var prop = new GameObject("Prop");
             prop.transform.SetParent(root.transform, false);
+            var directProp = new GameObject("DirectProp");
+            directProp.transform.SetParent(root.transform, false);
+            directProp.SetActive(false);
             var light = prop.AddComponent<Light>();
             light.intensity = 0;
             var effect = new GameObject("Effect");
@@ -75,6 +78,9 @@ public static class NxCloneToggleSmoke
             fx.AddParameter("gogo_walk", AnimatorControllerParameterType.Bool);
             fx.AddParameter("maskedClothing", AnimatorControllerParameterType.Bool);
             fx.AddParameter("curveProbe", AnimatorControllerParameterType.Bool);
+            fx.AddParameter("directToggle", AnimatorControllerParameterType.Bool);
+            fx.AddParameter("directWeight", AnimatorControllerParameterType.Float);
+            fx.AddParameter("inverseWeight", AnimatorControllerParameterType.Float);
             AddBoolLayer(fx, "Clothing", "clothing",
                 ActiveClip("clothes-off", "Clothes", 0), ActiveClip("clothes-on", "Clothes", 1));
             AddBoolLayer(fx, "Effects", "effects",
@@ -83,8 +89,20 @@ public static class NxCloneToggleSmoke
                 ActiveClip("mixed-off", "Prop", 0), MixedPropClip());
             AddBoolLayer(fx, "Masked clothing", "maskedClothing",
                 ActiveClip("masked-clothes-off", "MaskedClothes", 0), ActiveClip("masked-clothes-on", "MaskedClothes", 1));
+            var curveProbeOn = AnimatorFloatClip("curve-probe-on", "curveValue", 0.75f);
+            AnimationUtility.SetEditorCurve(curveProbeOn, EditorCurveBinding.FloatCurve("", typeof(Animator), "directWeight"),
+                AnimationCurve.Constant(0, 1, 1f));
+            AnimationUtility.SetEditorCurve(curveProbeOn, EditorCurveBinding.FloatCurve("", typeof(Animator), "inverseWeight"),
+                AnimationCurve.Constant(0, 1, 0f));
+            var curveProbeOff = AnimatorFloatClip("curve-probe-off", "curveValue", 0f);
+            AnimationUtility.SetEditorCurve(curveProbeOff, EditorCurveBinding.FloatCurve("", typeof(Animator), "directWeight"),
+                AnimationCurve.Constant(0, 1, 0f));
+            AnimationUtility.SetEditorCurve(curveProbeOff, EditorCurveBinding.FloatCurve("", typeof(Animator), "inverseWeight"),
+                AnimationCurve.Constant(0, 1, 1f));
             AddBoolLayer(fx, "Animator curve", "curveProbe",
-                new AnimationClip { name = "curve-probe-off" }, AnimatorFloatClip("curve-probe-on", "curveValue", 0.75f));
+                curveProbeOff, curveProbeOn);
+            AddDirectBlendLayer(fx, "Direct blend", "directToggle", "inverseWeight", "directWeight",
+                ActiveClip("direct-blend-off", "DirectProp", 0), ActiveClip("direct-blend-on", "DirectProp", 1));
             var sourceMask = new AvatarMask();
             sourceMask.AddTransformPath(maskedClothes.transform, false);
             sourceMask.SetTransformActive(0, true);
@@ -138,6 +156,10 @@ public static class NxCloneToggleSmoke
                 parameter = new VRCExpressionsMenu.Control.Parameter { name = "maskedClothing" }, value = 1
             });
             sourceMenu.controls.Add(new VRCExpressionsMenu.Control {
+                name = "Direct blend", type = VRCExpressionsMenu.Control.ControlType.Toggle,
+                parameter = new VRCExpressionsMenu.Control.Parameter { name = "directToggle" }, value = 1
+            });
+            sourceMenu.controls.Add(new VRCExpressionsMenu.Control {
                 name = "Details", type = VRCExpressionsMenu.Control.ControlType.SubMenu,
                 subMenu = effectsMenu, icon = icon
             });
@@ -151,7 +173,10 @@ public static class NxCloneToggleSmoke
                 Expression("curveValue", VRCExpressionParameters.ValueType.Float),
                 Expression("gogo_walk", VRCExpressionParameters.ValueType.Bool),
                 Expression("maskedClothing", VRCExpressionParameters.ValueType.Bool),
-                Expression("curveProbe", VRCExpressionParameters.ValueType.Bool)
+                Expression("curveProbe", VRCExpressionParameters.ValueType.Bool),
+                Expression("directToggle", VRCExpressionParameters.ValueType.Bool),
+                Expression("directWeight", VRCExpressionParameters.ValueType.Float),
+                Expression("inverseWeight", VRCExpressionParameters.ValueType.Float)
             };
             AssetDatabase.CreateAsset(sourceParameters, Folder + "/source-parameters.asset");
             descriptor.baseAnimationLayers = new[] { new VRCAvatarDescriptor.CustomAnimLayer {
@@ -182,6 +207,7 @@ public static class NxCloneToggleSmoke
                 "clone visual omitted body, clothing, prop Light, or ParticleSystem");
             var cloneClothes = clone.Find("Clothes").gameObject;
             var cloneProp = clone.Find("Prop").gameObject;
+            var cloneDirectProp = clone.Find("DirectProp").gameObject;
             var cloneLight = clone.Find("Prop").GetComponent<Light>();
             var cloneParticles = clone.Find("Effect").GetComponent<ParticleSystem>();
             var cloneParticleRenderer = clone.Find("Effect").GetComponent<ParticleSystemRenderer>();
@@ -203,12 +229,23 @@ public static class NxCloneToggleSmoke
             string curveValueAlias = Alias("curveValue");
             string maskedClothingAlias = Alias("maskedClothing");
             string curveProbeAlias = Alias("curveProbe");
+            string directToggleAlias = Alias("directToggle");
+            string directWeightAlias = Alias("directWeight");
+            string inverseWeightAlias = Alias("inverseWeight");
             Assert(!string.IsNullOrEmpty(clothingAlias) && !string.IsNullOrEmpty(effectsAlias) && !string.IsNullOrEmpty(mixedAlias),
                 "clone source FX parameters were not isolated under clone aliases");
             Assert(!string.IsNullOrEmpty(maskedClothingAlias), "masked clothing parameter was not isolated");
+            Assert(!string.IsNullOrEmpty(directToggleAlias) && !string.IsNullOrEmpty(directWeightAlias) &&
+                   !string.IsNullOrEmpty(inverseWeightAlias),
+                "Direct Blend Tree toggle or child weight parameter was not isolated");
             Assert(generatedFx.parameters.Single(parameter => parameter.name == mixedAlias).type == AnimatorControllerParameterType.Float &&
                    generatedExpressions.Single(parameter => parameter.name == mixedAlias).valueType == VRCExpressionParameters.ValueType.Bool,
                 "mismatched Float controller and Bool expression metadata were not both preserved");
+            Assert(generatedFx.layers.Single(layer => layer.name == "nxclone 1 Clothing").stateMachine.states
+                       .All(entry => entry.state.writeDefaultValues) &&
+                   !generatedFx.layers.Single(layer => layer.name == "nxclone 1 Effects").stateMachine.states
+                       .Any(entry => entry.state.writeDefaultValues),
+                "mixed Write Defaults policy was not preserved in the copied clone toggle layers");
             var clonedClothingClip = (AnimationClip)generatedFx.layers.Single(layer => layer.name == "nxclone 1 Clothing")
                 .stateMachine.states.Single(entry => entry.state.name == "On").state.motion;
             var clonedEffectClip = (AnimationClip)generatedFx.layers.Single(layer => layer.name == "nxclone 1 Effects")
@@ -223,9 +260,17 @@ public static class NxCloneToggleSmoke
                    AnimationUtility.GetCurveBindings(clonedEffectClip).Any(binding => binding.path == "nxclone/world/placement-1/clone-1/Effect" && binding.type == typeof(ParticleSystemRenderer)),
                 "source FX animation paths were not retargeted: clothing=" + string.Join(",", AnimationUtility.GetCurveBindings(clonedClothingClip).Select(binding => binding.path + ":" + binding.type.Name + ":" + binding.propertyName)) +
                 " effects=" + string.Join(",", AnimationUtility.GetCurveBindings(clonedEffectClip).Select(binding => binding.path + ":" + binding.type.Name + ":" + binding.propertyName)));
-            var animatorParameterCurve = AnimationUtility.GetCurveBindings(clonedCurveClip).Single(binding => binding.type == typeof(Animator));
+            var animatorParameterCurve = AnimationUtility.GetCurveBindings(clonedCurveClip).Single(binding => binding.type == typeof(Animator) && binding.propertyName == curveValueAlias);
             Assert(animatorParameterCurve.path == "" && animatorParameterCurve.propertyName == curveValueAlias,
                 "Animator parameter curve was not remapped to clone-specific Float alias");
+            var clonedDirectLayer = generatedFx.layers.Single(layer => layer.name == "nxclone 1 Direct blend");
+            var clonedDirectTree = clonedDirectLayer.stateMachine.states.Single(entry => entry.state.name == "On").state.motion as BlendTree;
+            Assert(clonedDirectTree && clonedDirectTree.blendType == BlendTreeType.Direct &&
+                   clonedDirectTree.children.Length == 2 &&
+                   clonedDirectTree.children.Any(child => child.directBlendParameter == directWeightAlias) &&
+                   clonedDirectTree.children.Any(child => child.directBlendParameter == inverseWeightAlias),
+                "Direct Blend Tree child weight parameter was not remapped to the clone-specific Float alias: " +
+                (clonedDirectTree ? string.Join(",", clonedDirectTree.children.Select(child => child.directBlendParameter)) : "missing tree"));
             Assert(AnimationUtility.GetCurveBindings(clonedMixedClip).Any(binding => binding.path == "__vrcf_length" &&
                     binding.type == typeof(GameObject) && binding.propertyName == "m_IsActive"),
                 "VRCFury clip-duration dummy track was not preserved");
@@ -280,6 +325,7 @@ public static class NxCloneToggleSmoke
 
             var mainClothes = root.transform.Find("Clothes").gameObject;
             var mainProp = root.transform.Find("Prop").gameObject;
+            var mainDirectProp = root.transform.Find("DirectProp").gameObject;
             animator.runtimeAnimatorController = generatedFx;
             animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
             animator.Rebind();
@@ -302,6 +348,14 @@ public static class NxCloneToggleSmoke
             animator.Update(0.1f); animator.Update(0.1f);
             Assert(mainClothes.activeSelf && cloneClothes.activeSelf,
                 "clone clothing toggle failed while primary clothing stayed on");
+            animator.SetBool(clothingAlias, false);
+            animator.Update(0.1f); animator.Update(0.1f);
+            Assert(mainClothes.activeSelf && !cloneClothes.activeSelf,
+                "repeated clone clothing disable failed with mixed Write Defaults layers");
+            animator.SetBool(clothingAlias, true);
+            animator.Update(0.1f); animator.Update(0.1f);
+            Assert(mainClothes.activeSelf && cloneClothes.activeSelf,
+                "repeated clone clothing enable failed with mixed Write Defaults layers");
             animator.SetBool("clothing", false);
             animator.Update(0.1f); animator.Update(0.1f);
             Assert(!mainClothes.activeSelf && cloneClothes.activeSelf,
@@ -361,6 +415,48 @@ public static class NxCloneToggleSmoke
             Assert(Mathf.Abs(animator.GetFloat(curveValueAlias) - 0.75f) < 0.01f,
                 "native Animator did not apply the remapped clone Float parameter curve");
 
+            animator.SetBool("directToggle", true);
+            animator.SetBool(directToggleAlias, true);
+            animator.SetBool("curveProbe", true);
+            animator.SetBool(curveProbeAlias, false);
+            animator.Update(0.1f); animator.Update(0.1f);
+            Assert(Mathf.Abs(animator.GetFloat("directWeight") - 1f) < 0.01f &&
+                   Mathf.Abs(animator.GetFloat("inverseWeight")) < 0.01f &&
+                   Mathf.Abs(animator.GetFloat(directWeightAlias)) < 0.01f &&
+                   Mathf.Abs(animator.GetFloat(inverseWeightAlias) - 1f) < 0.01f &&
+                   mainDirectProp.activeSelf && !cloneDirectProp.activeSelf,
+                "Direct Blend Tree child weight was shared instead of independently animated for the main and clone: mainWeight=" +
+                animator.GetFloat("directWeight") + " cloneWeight=" + animator.GetFloat(directWeightAlias) +
+                " mainActive=" + mainDirectProp.activeSelf + " cloneActive=" + cloneDirectProp.activeSelf);
+            animator.SetBool("curveProbe", false);
+            animator.SetBool(curveProbeAlias, true);
+            animator.Update(0.1f); animator.Update(0.1f);
+            Assert(!mainDirectProp.activeSelf && cloneDirectProp.activeSelf,
+                "clone Direct Blend Tree did not follow its independently animated child weight");
+            animator.SetBool("curveProbe", true);
+            animator.SetBool(curveProbeAlias, false);
+            animator.Update(0.1f); animator.Update(0.1f);
+            Assert(mainDirectProp.activeSelf && !cloneDirectProp.activeSelf,
+                "main Direct Blend Tree did not recover after the clone drove its own child weight");
+            animator.SetBool("curveProbe", false);
+            animator.SetBool(curveProbeAlias, true);
+            animator.Update(0.1f); animator.Update(0.1f);
+            for (int cycle = 0; cycle < 2; cycle++)
+            {
+                animator.SetBool(directToggleAlias, true);
+                animator.Update(0.1f); animator.Update(0.1f);
+                Assert(!mainDirectProp.activeSelf && cloneDirectProp.activeSelf,
+                    "Direct Blend Tree clone enable failed on cycle " + (cycle + 1));
+                animator.SetBool(directToggleAlias, false);
+                animator.Update(0.1f); animator.Update(0.1f);
+                Assert(!mainDirectProp.activeSelf && !cloneDirectProp.activeSelf,
+                    "Direct Blend Tree clone disable failed on cycle " + (cycle + 1));
+            }
+            animator.SetBool("directToggle", false);
+            animator.Update(0.1f); animator.Update(0.1f);
+            Assert(!mainDirectProp.activeSelf && !cloneDirectProp.activeSelf,
+                "main Direct Blend Tree disable failed after repeated clone toggles");
+
             Debug.Log("NXCLONE_TOGGLE_SMOKE_OK: independent source toggles, component retention, menu aliases/icons, and mixed expression/controller types");
         }
         finally
@@ -417,6 +513,29 @@ public static class NxCloneToggleSmoke
         AddLayer(controller, name, parameter, offClip, onClip, AnimatorConditionMode.Greater, AnimatorConditionMode.Less);
     }
 
+    static void AddDirectBlendLayer(AnimatorController controller, string name, string parameter,
+        string offWeightParameter, string onWeightParameter, AnimationClip offClip, AnimationClip onClip)
+    {
+        AssetDatabase.AddObjectToAsset(offClip, controller);
+        AssetDatabase.AddObjectToAsset(onClip, controller);
+        var tree = new BlendTree { name = name + " direct", blendType = BlendTreeType.Direct };
+        AssetDatabase.AddObjectToAsset(tree, controller);
+        tree.children = new[] {
+            new ChildMotion { motion = offClip, directBlendParameter = offWeightParameter },
+            new ChildMotion { motion = onClip, directBlendParameter = onWeightParameter }
+        };
+        var machine = new AnimatorStateMachine { name = name };
+        AssetDatabase.AddObjectToAsset(machine, controller);
+        var off = machine.AddState("Off"); off.motion = offClip;
+        var on = machine.AddState("On"); on.motion = tree;
+        machine.defaultState = off;
+        var enable = off.AddTransition(on); enable.hasExitTime = false; enable.duration = 0;
+        enable.AddCondition(AnimatorConditionMode.If, 0, parameter);
+        var disable = on.AddTransition(off); disable.hasExitTime = false; disable.duration = 0;
+        disable.AddCondition(AnimatorConditionMode.IfNot, 0, parameter);
+        controller.AddLayer(new AnimatorControllerLayer { name = name, defaultWeight = 1, stateMachine = machine });
+    }
+
     static void AddLayer(AnimatorController controller, string name, string parameter, AnimationClip offClip,
         AnimationClip onClip, AnimatorConditionMode toOn, AnimatorConditionMode toOff)
     {
@@ -426,6 +545,7 @@ public static class NxCloneToggleSmoke
         AssetDatabase.AddObjectToAsset(machine, controller);
         var off = machine.AddState("Off"); off.motion = offClip;
         var on = machine.AddState("On"); on.motion = onClip;
+        off.writeDefaultValues = on.writeDefaultValues = name == "Clothing";
         machine.defaultState = off;
         var enable = off.AddTransition(on); enable.hasExitTime = false; enable.duration = 0;
         enable.AddCondition(toOn, toOn == AnimatorConditionMode.Greater ? 0.5f : 0, parameter);

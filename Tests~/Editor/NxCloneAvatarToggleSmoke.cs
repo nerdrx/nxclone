@@ -83,6 +83,18 @@ public static class NxCloneAvatarToggleSmoke
             var fx = Fx(descriptor);
             if (!descriptor || !fx || !descriptor.expressionsMenu || !descriptor.expressionParameters)
                 throw new Exception("Finalized avatar is missing descriptor FX, menu, or expression parameters.");
+            var mainStates = fx.layers.Where(layer => !layer.name.StartsWith("nxclone", StringComparison.Ordinal))
+                .SelectMany(layer => States(layer.stateMachine));
+            if (mainStates.SelectMany(state => state.transitions).SelectMany(transition => transition.conditions)
+                .Any(condition => condition.parameter.StartsWith("nxclone_clone", StringComparison.Ordinal)))
+                throw new Exception("Clone merge rewrote a main-avatar transition to a clone parameter.");
+            var directWeights = fx.layers.Where(layer => layer.name.StartsWith("nxclone 1 ", StringComparison.Ordinal))
+                .SelectMany(layer => States(layer.stateMachine)).SelectMany(state => Trees(state.motion))
+                .Where(tree => tree.blendType == BlendTreeType.Direct).SelectMany(tree => tree.children)
+                .Select(child => child.directBlendParameter).Where(name => !string.IsNullOrEmpty(name)).ToArray();
+            if (!directWeights.Any(name => name.StartsWith("nxclone_clone1_", StringComparison.Ordinal)) ||
+                directWeights.Any(name => Regex.IsMatch(name, @"^VF\d+_")))
+                throw new Exception("Baked clone Direct Blend Tree weights were not isolated.");
 
             var avatarTogglesControl = FindControl(descriptor.expressionsMenu,
                 control => control.name == "Avatar toggles");
@@ -216,6 +228,16 @@ public static class NxCloneAvatarToggleSmoke
         if (!visited.Add(tree)) yield break;
         foreach (var child in tree.children)
             foreach (var childClip in Clips(child.motion, visited)) yield return childClip;
+    }
+
+    static IEnumerable<BlendTree> Trees(Motion motion, HashSet<BlendTree> visited = null)
+    {
+        if (!(motion is BlendTree tree)) yield break;
+        visited = visited ?? new HashSet<BlendTree>();
+        if (!visited.Add(tree)) yield break;
+        yield return tree;
+        foreach (var child in tree.children)
+            foreach (var nested in Trees(child.motion, visited)) yield return nested;
     }
 
     static bool IsGoGoName(string name)
